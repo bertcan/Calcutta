@@ -898,8 +898,8 @@ const ALL_PICKS = [
   { id: 45, name: 'Corey Conners',          owner: 'Chase Nixon',     price: 1275 },
   { id: 46, name: 'Sam Stevens',            owner: 'Sam Braver',      price: 50   },
   { id: 47, name: 'Kristoffer Reitan',       owner: 'Patrick Sala',    price: 100  },
-  { id: 48, name: 'Michael Brennan',        owner: 'Austin Mai',      price: 0, inField: true },
-  { id: 49, name: 'Andrew Novak',           owner: 'Austin Mai',      price: 0, inField: true },
+  { id: 48, name: 'Michael Brennan',        owner: 'Austin Mai',      price: 12.50, inField: true },
+  { id: 49, name: 'Andrew Novak',           owner: 'Austin Mai',      price: 12.50, inField: true },
   { id: 50, name: 'Matthew McCarty',        owner: 'Patrick Sala',    price: 150  },
   { id: 51, name: 'Brian Harman',           owner: 'David Turner',    price: 500  },
   { id: 52, name: 'Ryan Fox',               owner: 'Matt Clayton',    price: 175  },
@@ -910,10 +910,10 @@ const ALL_PICKS = [
   { id: 57, name: 'Max Greyserman',         owner: 'Carter Hickok',   price: 150  },
   { id: 58, name: 'Jordan Spieth',          owner: 'Patrick Sala',    price: 1350 },
   { id: 59, name: 'Harry Hall',             owner: 'Travis Francois', price: 275  },
-  { id: 60, name: 'John Keefer',            owner: 'Austin Mai',      price: 0, inField: true },
+  { id: 60, name: 'John Keefer',            owner: 'Austin Mai',      price: 12.50, inField: true },
   { id: 61, name: 'Nick Taylor',            owner: 'Chase Nixon',     price: 125  },
   { id: 62, name: 'Rasmus Neergaard-Petersen', owner: 'David Turner', price: 100  },
-  { id: 63, name: 'Casey Jarvis',           owner: 'Austin Mai',      price: 0, inField: true },
+  { id: 63, name: 'Casey Jarvis',           owner: 'Austin Mai',      price: 12.50, inField: true },
   { id: 64, name: 'Sungjae Im',             owner: 'Sam Turtletaub',  price: 950  },
   { id: 65, name: 'Aldrich Potgieter',      owner: 'Patrick Sala',    price: 75   },
   { id: 66, name: 'Wyndham Clark',          owner: 'Matt Clayton',    price: 325  },
@@ -954,7 +954,7 @@ const SCOTTIE_TRACK = { name: 'Scottie Scheffler', pool: 'Northwood', price: 630
 // Team spend — computed accurately from pick data (accounts for known splits)
 const TEAM_SPEND = {};
 ALL_PICKS.forEach(p => {
-  if (p.price === 0 || p.inField) return;
+  if (p.price === 0) return;
   const ownerPays = p.price - (p.splitPaid || 0);
   TEAM_SPEND[p.owner] = (TEAM_SPEND[p.owner] || 0) + ownerPays;
   if (p.splitOwner && p.splitPaid) {
@@ -1156,7 +1156,8 @@ async function fetchLiveScores() {
       else if (detail === 'CUT') thru = 'CUT';
       else if (/^\d+$/.test(detail)) thru = detail;
       else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
-      if (thru === '-' && comp.linescores) {
+      const statusState = comp.status?.type?.state || '';
+      if (thru === '-' && comp.linescores && statusState !== 'pre') {
         const holes = comp.linescores.length;
         if (holes >= 18) thru = 'F';
         else if (holes > 0) thru = String(holes);
