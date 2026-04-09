@@ -1112,6 +1112,18 @@ async function fetchLiveScores() {
     const competitors = (event.competitions || [{}])[0].competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
 
+    // Show raw first competitor data in UI for debugging
+    const c0 = competitors[0];
+    const debugInfo = {
+      name: c0?.athlete?.displayName,
+      score: c0?.score,
+      statistics: c0?.statistics,
+      statusPosition: c0?.status?.position,
+      statusShortDetail: c0?.status?.type?.shortDetail,
+      statusName: c0?.status?.type?.name,
+    };
+    setStatusMsg('DEBUG: ' + JSON.stringify(debugInfo));
+
     const newScores = {};
     competitors.forEach(comp => {
       const name = comp.athlete?.displayName;
