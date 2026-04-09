@@ -1148,6 +1148,7 @@ async function fetchLiveScores() {
         || comp.position?.displayName
         || stats.position || stats.rank || String(comp.order || '') || '';
       let position = parseInt(posDisplay.replace(/^T/, '')) || 999;
+      const posStr = posDisplay || '';
 
       // Thru — try shortDetail first, fall back to linescores count
       const detail = comp.status?.type?.shortDetail || '';
@@ -1169,7 +1170,7 @@ async function fetchLiveScores() {
                    : (sName.includes('WD') || sName.includes('WITHDRAWN')) ? 'wd'
                    : 'active';
 
-      newScores[name] = { name, position, score, thru, status };
+      newScores[name] = { name, position, posStr, score, thru, status };
     });
 
     if (Object.keys(newScores).length === 0) throw new Error(`Parsed 0 players from: ${event.name}. Stats keys: ${JSON.stringify(Object.fromEntries((competitors[0]?.statistics||[]).map(s=>[s.name,s.displayValue])))}`);
@@ -1259,7 +1260,7 @@ function renderMyTeam() {
 
     const posClass = pos === 1 ? 'leader' : (status === 'cut' ? 'missed-cut' : 'made-cut');
     const badgeClass = pos <= 3 ? 'top3' : (pos <= 10 ? 'top10' : (status === 'cut' ? 'missed' : ''));
-    const posDisplay = pos ? (status === 'cut' ? 'CUT' : pos > 50 ? pos : pos) : '—';
+    const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
     const splitLabel = pick.splitPct ? `<span class="split-tag">${Math.round(ownership * 100)}% share</span>` : '';
 
     html += `
@@ -1537,9 +1538,9 @@ function renderField() {
     const thru = score ? score.thru : null;
     const status = score ? score.status : 'active';
     const isMe = pick.owner === selectedTeam || pick.splitOwner === selectedTeam;
-    const posDisplay = pos ? (status === 'cut' ? 'CUT' : (pos <= 99 ? pos : '—')) : '—';
+    const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
 
-    const thruDisplay = thru && thru !== '-' ? (thru === 'F' ? 'F' : 'T' + thru) : '—';
+    const thruDisplay = thru && thru !== '-' ? thru : '—';
     html += `
       <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
         <div class="field-pos">${posDisplay}</div>
