@@ -1144,6 +1144,14 @@ async function fetchLiveScores() {
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
 
 
+    // Pre-count position occurrences across ALL competitors to detect ties
+    const positionCounts = {};
+    competitors.forEach(comp => {
+      const pd = comp.status?.position?.displayName || comp.position?.displayName || String(comp.order || '');
+      const p = parseInt(pd.replace(/^T/, ''));
+      if (p && p < 999) positionCounts[p] = (positionCounts[p] || 0) + 1;
+    });
+
     const newScores = {};
     competitors.forEach(comp => {
       const name = comp.athlete?.displayName;
@@ -1156,14 +1164,17 @@ async function fetchLiveScores() {
         score = parseInt(toParStr.replace('+', '')) || 0;
       }
 
-      // Position — try known ESPN locations (debug will reveal correct field)
+      // Position — try known ESPN locations
       const statsArr = Array.isArray(comp.statistics) ? comp.statistics : [];
       const stats = Object.fromEntries(statsArr.map(s => [s.name, s.displayValue]));
       const posDisplay = comp.status?.position?.displayName
         || comp.position?.displayName
         || stats.position || stats.rank || String(comp.order || '') || '';
       let position = parseInt(posDisplay.replace(/^T/, '')) || 999;
-      const posStr = posDisplay || '';
+      // Build posStr: add "T" prefix when multiple players share this position
+      const posStr = position < 999
+        ? ((positionCounts[position] || 1) > 1 ? 'T' + position : String(position))
+        : '';
 
       // Thru — try shortDetail first, fall back to linescores count
       const detail = comp.status?.type?.shortDetail || '';
