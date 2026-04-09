@@ -778,7 +778,7 @@ text-overflow: ellipsis;
         <div>Team</div>
         <div style="text-align:right">Spent</div>
         <div style="text-align:right">Proj $</div>
-        <div style="text-align:right">ROI</div>
+        <div style="text-align:right">Multi</div>
       </div>
       <div id="lb-rows"></div>
     </div>
@@ -1351,11 +1351,9 @@ function renderLeaderboard() {
     const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
     const isMe = team === selectedTeam;
     const hasLive = liveScores && Object.keys(liveScores).length > 0;
-    const roi = hasLive && data.proj > 0 ? data.proj - data.spent : null;
     const projDisplay = data.proj > 0 ? fmtMoney(data.proj) : hasLive ? '$0' : '—';
-    const projClass = roi !== null && roi < 0 ? 'score-over' : '';
-    const roiDisplay = roi !== null ? (roi >= 0 ? '+' : '') + fmtMoney(roi) : '—';
-    const roiClass = roi === null ? '' : roi >= 0 ? 'score-under' : 'score-over';
+    const projNeg = hasLive && data.proj > 0 && data.proj < data.spent;
+    const mult = fmtMultiple(data.proj, data.spent);
     const shortName = team.replace(' Hickok','').replace(' Knowlton','').replace(' Turner','').replace(' Turtletaub','').replace(' Mai','').replace(' Francois','').replace(' Sala','').replace(' Clayton','').replace(' Fraker','').replace(' Nixon','').replace(' Braver','');
 
     html += `
@@ -1363,8 +1361,8 @@ function renderLeaderboard() {
         <div class="lb-rank ${rankClass}">${rank}</div>
         <div class="lb-team">${shortName}${isMe ? ' ⭐' : ''}</div>
         <div class="lb-spent">${fmtMoney(data.spent)}</div>
-        <div class="lb-proj ${projClass}">${projDisplay}</div>
-        <div class="lb-proj ${roiClass}" style="text-align:right;font-size:11px">${roiDisplay}</div>
+        <div class="lb-proj ${projNeg ? 'score-over' : ''}">${projDisplay}</div>
+        <div class="${mult.cls}" style="text-align:right;font-size:11px">${hasLive ? mult.text : '—'}</div>
       </div>`;
   });
 
