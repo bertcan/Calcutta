@@ -730,6 +730,7 @@ text-overflow: ellipsis;
   <!-- MY TEAM VIEW -->
 
   <div class="view active" id="view-myteam">
+    <div id="debug-panel" style="font-size:10px;word-break:break-all;padding:8px;background:#111;color:#0f0;display:none;white-space:pre-wrap;"></div>
     <div class="team-selector">
       <div class="team-selector-label">Select Your Team</div>
       <div class="team-pills" id="team-pills"></div>
@@ -1112,7 +1113,7 @@ async function fetchLiveScores() {
     const competitors = (event.competitions || [{}])[0].competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
 
-    // Show raw first competitor data in UI for debugging
+    // Show raw first competitor data in debug panel
     const c0 = competitors[0];
     const debugInfo = {
       name: c0?.athlete?.displayName,
@@ -1122,7 +1123,8 @@ async function fetchLiveScores() {
       statusShortDetail: c0?.status?.type?.shortDetail,
       statusName: c0?.status?.type?.name,
     };
-    setStatusMsg('DEBUG: ' + JSON.stringify(debugInfo));
+    const dp = document.getElementById('debug-panel');
+    if (dp) { dp.style.display = 'block'; dp.textContent = JSON.stringify(debugInfo, null, 2); }
 
     const newScores = {};
     competitors.forEach(comp => {
