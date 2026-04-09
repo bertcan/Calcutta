@@ -425,11 +425,27 @@ text-align: right;
 .lb-proj.negative { color: var(--red-light); font-size: 12px; }
 
 /* ===== FIELD VIEW ===== */
-.field-player {
-display: flex;
+.field-header, .field-player {
+display: grid;
+grid-template-columns: 40px 1fr 42px 42px 48px 54px;
 align-items: center;
-gap: 12px;
-padding: 11px 16px;
+padding: 8px 12px;
+}
+
+.field-header {
+font-size: 10px;
+color: var(--text-dim);
+font-weight: 700;
+letter-spacing: 0.06em;
+text-transform: uppercase;
+border-bottom: 1px solid rgba(255,255,255,0.12);
+position: sticky;
+top: 0;
+background: var(--green-dark);
+z-index: 1;
+}
+
+.field-player {
 border-bottom: 1px solid rgba(255,255,255,0.04);
 transition: background 0.15s;
 }
@@ -437,33 +453,29 @@ transition: background 0.15s;
 .field-player:active { background: rgba(255,255,255,0.03); }
 
 .field-pos {
-width: 36px;
 font-size: 11px;
 color: var(--text-dim);
 text-align: center;
-flex-shrink: 0;
-font-weight: 500;
+font-weight: 600;
 }
 
 .field-name {
-flex: 1;
 font-size: 13px;
 color: var(--cream);
 font-family: ‘Playfair Display’, serif;
 font-weight: 600;
+padding-right: 4px;
 }
 
 .field-score {
 font-size: 12px;
-font-weight: 500;
-width: 40px;
+font-weight: 600;
 text-align: center;
 }
 
 .field-owner {
 font-size: 10px;
 color: var(--text-dim);
-width: 80px;
 text-align: right;
 white-space: nowrap;
 overflow: hidden;
@@ -830,6 +842,9 @@ text-overflow: ellipsis;
 // ============================================================
 const TOTAL_POT = 97700;
 
+// Augusta National par by hole 1-18
+const AUGUSTA_PAR = [4,5,4,3,4,3,4,5,4, 4,4,3,5,4,5,3,4,4];
+
 // Payout structure (from rules doc, applied to actual pot)
 const PAYOUTS = [
   { place: '1st Place',       pct: 0.335 },
@@ -1164,13 +1179,27 @@ async function fetchLiveScores() {
         else if (holes > 0) thru = String(holes);
       }
 
+      // Today's round score (to par) from linescores + Augusta par
+      let todayScore = null;
+      if (comp.linescores && comp.linescores.length > 0 && statusState !== 'pre') {
+        const holesPlayed = Math.min(comp.linescores.length, 18);
+        let strokes = 0;
+        for (let i = 0; i < holesPlayed; i++) {
+          const ls = comp.linescores[i];
+          const val = typeof ls === 'number' ? ls : (ls.value || parseInt(ls.displayValue) || 0);
+          strokes += val;
+        }
+        const parForHoles = AUGUSTA_PAR.slice(0, holesPlayed).reduce((a, b) => a + b, 0);
+        todayScore = strokes - parForHoles;
+      }
+
       // Status
       const sName = comp.status?.type?.name || '';
       const status = (sName.includes('CUT') || sName.includes('MISSED')) ? 'cut'
                    : (sName.includes('WD') || sName.includes('WITHDRAWN')) ? 'wd'
                    : 'active';
 
-      newScores[name] = { name, position, posStr, score, thru, status };
+      newScores[name] = { name, position, posStr, score, todayScore, thru, status };
     });
 
     if (Object.keys(newScores).length === 0) throw new Error(`Parsed 0 players from: ${event.name}. Stats keys: ${JSON.stringify(Object.fromEntries((competitors[0]?.statistics||[]).map(s=>[s.name,s.displayValue])))}`);
@@ -1530,23 +1559,33 @@ function renderField() {
     return pa - pb;
   });
 
-  let html = '';
+  let html = `
+    <div class="field-header">
+      <div style="text-align:center">POS</div>
+      <div>PLAYER</div>
+      <div style="text-align:center">TOT</div>
+      <div style="text-align:center">THRU</div>
+      <div style="text-align:center">TODAY</div>
+      <div style="text-align:right">OWNER</div>
+    </div>`;
   sorted.forEach((pick, i) => {
     const score = pick._score;
     const pos = score ? score.position : null;
     const scoreVal = score ? score.score : null;
+    const todayScore = score ? score.todayScore : null;
     const thru = score ? score.thru : null;
     const status = score ? score.status : 'active';
     const isMe = pick.owner === selectedTeam || pick.splitOwner === selectedTeam;
     const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
-
     const thruDisplay = thru && thru !== '-' ? thru : '—';
+    const todayDisplay = todayScore !== null ? fmtScore(todayScore) : '—';
     html += `
       <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
         <div class="field-pos">${posDisplay}</div>
         <div class="field-name">${canonicalName(pick.name)}</div>
         <div class="field-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}</div>
-        <div class="field-score" style="font-size:11px;color:var(--text-dim)">${thruDisplay}</div>
+        <div class="field-score" style="color:var(--text-dim);font-weight:400">${thruDisplay}</div>
+        <div class="field-score ${scoreColor(todayScore)}">${todayDisplay}</div>
         <div class="field-owner ${isMe ? 'mine' : ''}">${pick.owner.split(' ')[0]}</div>
       </div>`;
   });
