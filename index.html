@@ -1048,7 +1048,8 @@ function canonicalName(name) {
 
 // Map pick names to Masters API search names
 function searchName(name) {
-  const c = canonicalName(name);
+  // Strip amateur tag and display suffixes before lookup
+  const c = canonicalName(name).replace(/\s*\(a\)\s*$/i, '').trim();
   const map = {
     'Nicolai Højgaard': 'Nicolai Hojgaard',
     'Ludvig Åberg': 'Ludvig Aberg',
@@ -1147,7 +1148,7 @@ async function fetchLiveScores() {
     // Pre-count position occurrences across ALL competitors to detect ties
     const positionCounts = {};
     competitors.forEach(comp => {
-      const pd = comp.status?.position?.displayName || comp.position?.displayName || String(comp.order || '');
+      const pd = comp.status?.position?.displayName || comp.position?.displayName || '';
       const p = parseInt(pd.replace(/^T/, ''));
       if (p && p < 999) positionCounts[p] = (positionCounts[p] || 0) + 1;
     });
@@ -1169,7 +1170,7 @@ async function fetchLiveScores() {
       const stats = Object.fromEntries(statsArr.map(s => [s.name, s.displayValue]));
       const posDisplay = comp.status?.position?.displayName
         || comp.position?.displayName
-        || stats.position || stats.rank || String(comp.order || '') || '';
+        || stats.position || stats.rank || '';
       let position = parseInt(posDisplay.replace(/^T/, '')) || 999;
       // Build posStr: add "T" prefix when multiple players share this position
       const posStr = position < 999
