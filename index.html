@@ -363,8 +363,8 @@ border: 1px solid rgba(255,255,255,0.06);
 .lb-header {
 background: var(–green-mid);
 display: grid;
-grid-template-columns: 32px 1fr 60px 70px;
-gap: 8px;
+grid-template-columns: 32px 1fr 55px 65px 52px;
+gap: 6px;
 padding: 10px 14px;
 font-size: 8px;
 letter-spacing: 1px;
@@ -374,8 +374,8 @@ color: var(–text-dim);
 
 .lb-row {
 display: grid;
-grid-template-columns: 32px 1fr 60px 70px;
-gap: 8px;
+grid-template-columns: 32px 1fr 55px 65px 52px;
+gap: 6px;
 padding: 12px 14px;
 background: var(–green-dark);
 border-bottom: 1px solid rgba(255,255,255,0.04);
@@ -549,6 +549,16 @@ font-size: 9px;
 color: var(–text-dim);
 padding: 8px;
 letter-spacing: 0.5px;
+}
+
+/* ===== POWERED BY FOOTER ===== */
+.powered-by {
+text-align: center;
+font-size: 9px;
+color: var(–text-dim);
+padding: 12px 8px 20px;
+letter-spacing: 0.5px;
+opacity: 0.5;
 }
 
 /* ===== EMPTY STATE ===== */
@@ -755,6 +765,7 @@ text-overflow: ellipsis;
     <div class="section-title">Players</div>
     <div id="my-players-list"></div>
     <div class="last-updated" id="team-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
   </div>
 
   <!-- LEADERBOARD VIEW -->
@@ -767,10 +778,12 @@ text-overflow: ellipsis;
         <div>Team</div>
         <div style="text-align:right">Spent</div>
         <div style="text-align:right">Proj $</div>
+        <div style="text-align:right">ROI</div>
       </div>
       <div id="lb-rows"></div>
     </div>
     <div class="last-updated" id="lb-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
   </div>
 
   <!-- FULL FIELD VIEW -->
@@ -779,6 +792,7 @@ text-overflow: ellipsis;
     <div class="section-title">All Players — Live Leaderboard</div>
     <div id="field-list"></div>
     <div class="last-updated" id="field-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
   </div>
 
   <!-- PRIZES VIEW — payout slots with current leaders -->
@@ -787,6 +801,7 @@ text-overflow: ellipsis;
     <div class="section-title">Payout Positions — Current Leaders</div>
     <div id="prizes-list"></div>
     <div class="last-updated" id="prizes-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
   </div>
 
   <!-- PAYOUTS VIEW — simple payout table -->
@@ -798,6 +813,7 @@ text-overflow: ellipsis;
     <div class="payout-card">
       <div class="payout-row"><span style="font-size:12px;color:var(--text-dim);line-height:1.6">Pot based on total auction proceeds of $97,700. Percentages from 2025 TCAFFL rules. Scheffler split into two 50% halves. Round Low/High bonuses paid per round.</span></div>
     </div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
   </div>
 
 </div>
@@ -1133,13 +1149,18 @@ async function fetchLiveScores() {
         || stats.position || stats.rank || String(comp.order || '') || '';
       let position = parseInt(posDisplay.replace(/^T/, '')) || 999;
 
-      // Thru
-      const detail = comp.status?.type?.shortDetail || '-';
+      // Thru — try shortDetail first, fall back to linescores count
+      const detail = comp.status?.type?.shortDetail || '';
       let thru = '-';
       if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
       else if (detail === 'CUT') thru = 'CUT';
       else if (/^\d+$/.test(detail)) thru = detail;
       else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
+      if (thru === '-' && comp.linescores) {
+        const holes = comp.linescores.length;
+        if (holes >= 18) thru = 'F';
+        else if (holes > 0) thru = String(holes);
+      }
 
       // Status
       const sName = comp.status?.type?.name || '';
@@ -1319,9 +1340,12 @@ function renderLeaderboard() {
     const rank = i + 1;
     const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
     const isMe = team === selectedTeam;
-    const roi = data.spent > 0 ? data.proj - data.spent : 0;
-    const projDisplay = data.proj > 0 ? fmtMoney(data.proj) : liveScores && Object.keys(liveScores).length > 0 ? '$0' : '—';
-    const projClass = roi < 0 && data.proj > 0 ? 'negative' : '';
+    const hasLive = liveScores && Object.keys(liveScores).length > 0;
+    const roi = hasLive && data.proj > 0 ? data.proj - data.spent : null;
+    const projDisplay = data.proj > 0 ? fmtMoney(data.proj) : hasLive ? '$0' : '—';
+    const projClass = roi !== null && roi < 0 ? 'score-over' : '';
+    const roiDisplay = roi !== null ? (roi >= 0 ? '+' : '') + fmtMoney(roi) : '—';
+    const roiClass = roi === null ? '' : roi >= 0 ? 'score-under' : 'score-over';
     const shortName = team.replace(' Hickok','').replace(' Knowlton','').replace(' Turner','').replace(' Turtletaub','').replace(' Mai','').replace(' Francois','').replace(' Sala','').replace(' Clayton','').replace(' Fraker','').replace(' Nixon','').replace(' Braver','');
 
     html += `
@@ -1330,6 +1354,7 @@ function renderLeaderboard() {
         <div class="lb-team">${shortName}${isMe ? ' ⭐' : ''}</div>
         <div class="lb-spent">${fmtMoney(data.spent)}</div>
         <div class="lb-proj ${projClass}">${projDisplay}</div>
+        <div class="lb-proj ${roiClass}" style="text-align:right;font-size:11px">${roiDisplay}</div>
       </div>`;
   });
 
@@ -1423,10 +1448,44 @@ function renderPrizes() {
       </div>`;
   });
 
+  // Compute Round 1 Low leader (lowest score among all non-field picks)
+  let r1Low = null, r1LowScore = Infinity;
+  ALL_PICKS.forEach(pick => {
+    if (pick.inField || canonicalName(pick.name) === 'Field') return;
+    const s = getScore(pick.name);
+    if (!s || s.status === 'cut' || s.status === 'wd') return;
+    if (s.score < r1LowScore) { r1LowScore = s.score; r1Low = { pick, score: s }; }
+  });
+
+  // Compute Low Amateur leader
+  const amateurPicks = ALL_PICKS.filter(p =>
+    p.name.includes('(a)') || p.name === 'Casey Jarvis'
+  );
+  let lowAm = null, lowAmScore = Infinity;
+  amateurPicks.forEach(pick => {
+    const s = getScore(pick.name);
+    if (!s || s.status === 'cut' || s.status === 'wd') return;
+    if (s.score < lowAmScore) { lowAmScore = s.score; lowAm = { pick, score: s }; }
+  });
+
   // Bonus payouts (round prizes, amateur) — simpler cards
   html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
-  bonusPayouts.forEach(payout => {
+  bonusPayouts.forEach((payout, bi) => {
     const payoutAmt = Math.round(payout.pct * TOTAL_POT);
+    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '';
+
+    if (bi === 0 && hasScores && r1Low) {
+      // 1st Round Low — live
+      bonusPlayer = canonicalName(r1Low.pick.name);
+      bonusOwner = shortName(r1Low.pick.owner);
+      bonusScore = ' ' + fmtScore(r1Low.score.score);
+    } else if (payout.place === 'Low Amateur' && hasScores && lowAm) {
+      bonusPlayer = canonicalName(lowAm.pick.name);
+      bonusOwner = shortName(lowAm.pick.owner);
+      bonusScore = ' ' + fmtScore(lowAm.score.score);
+    }
+
+    const isLive = (bi === 0 || payout.place === 'Low Amateur') && hasScores;
     html += `
       <div class="prize-card">
         <div class="prize-top-row">
@@ -1438,8 +1497,8 @@ function renderPrizes() {
         </div>
         <div class="prize-bottom-row">
           <div class="prize-cell" style="grid-column:span 2">
-            <div class="prize-cell-label">Determined per round</div>
-            <div class="prize-cell-value dim">Updates during play</div>
+            <div class="prize-cell-label">${isLive ? 'Current Leader' : 'Determined per round'}</div>
+            <div class="prize-cell-value ${isLive && bonusPlayer !== '—' ? 'highlight' : 'dim'}">${isLive && bonusPlayer !== '—' ? bonusPlayer + bonusScore + ' · ' + bonusOwner : 'Updates during play'}</div>
           </div>
         </div>
       </div>`;
@@ -1471,11 +1530,13 @@ function renderField() {
     const isMe = pick.owner === selectedTeam || pick.splitOwner === selectedTeam;
     const posDisplay = pos ? (status === 'cut' ? 'CUT' : (pos <= 99 ? pos : '—')) : '—';
 
+    const thruDisplay = thru && thru !== '-' ? (thru === 'F' ? 'F' : 'T' + thru) : '—';
     html += `
       <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
         <div class="field-pos">${posDisplay}</div>
         <div class="field-name">${canonicalName(pick.name)}</div>
         <div class="field-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}</div>
+        <div class="field-score" style="font-size:11px;color:var(--text-dim)">${thruDisplay}</div>
         <div class="field-owner ${isMe ? 'mine' : ''}">${pick.owner.split(' ')[0]}</div>
       </div>`;
   });
