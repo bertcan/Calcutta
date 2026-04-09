@@ -1205,6 +1205,18 @@ async function fetchLiveScores() {
       newScores[name] = { name, position, posStr, score, todayScore, thru, status };
     });
 
+    // Re-compute posStr from score groupings (ESPN gives sequential numbers, not tied positions)
+    const startedPlayers = Object.values(newScores).filter(p => p.thru !== '-' && p.status === 'active');
+    const scoreGroups = {};
+    startedPlayers.forEach(p => { (scoreGroups[p.score] = scoreGroups[p.score] || []).push(p); });
+    let rank = 1;
+    Object.keys(scoreGroups).map(Number).sort((a, b) => a - b).forEach(s => {
+      const group = scoreGroups[s];
+      const str = (group.length > 1 ? 'T' : '') + rank;
+      group.forEach(p => { p.posStr = str; });
+      rank += group.length;
+    });
+
     if (Object.keys(newScores).length === 0) throw new Error(`Parsed 0 players from: ${event.name}. Stats keys: ${JSON.stringify(Object.fromEntries((competitors[0]?.statistics||[]).map(s=>[s.name,s.displayValue])))}`);
 
     liveScores = newScores;
@@ -1550,13 +1562,18 @@ function renderPrizes() {
   if (lastFetch) document.getElementById('prizes-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
 }
 function renderField() {
-  // Sort by position
-  const withScores = ALL_PICKS.filter(p => !p.inField && canonicalName(p.name) !== 'Field').map(p => {
-    const score = getScore(p.name);
-    return { ...p, _score: score };
+  // Deduplicate by canonical player name, merging owners for split picks
+  const playerMap = {};
+  ALL_PICKS.filter(p => !p.inField && canonicalName(p.name) !== 'Field').forEach(p => {
+    const key = canonicalName(p.name);
+    if (!playerMap[key]) {
+      playerMap[key] = { ...p, _canonName: key, _owners: [p.owner], _score: getScore(p.name) };
+    } else {
+      if (!playerMap[key]._owners.includes(p.owner)) playerMap[key]._owners.push(p.owner);
+    }
   });
 
-  const sorted = withScores.slice().sort((a, b) => {
+  const sorted = Object.values(playerMap).sort((a, b) => {
     const pa = a._score ? (a._score.position || 999) : 999;
     const pb = b._score ? (b._score.position || 999) : 999;
     return pa - pb;
@@ -1573,23 +1590,23 @@ function renderField() {
     </div>`;
   sorted.forEach((pick, i) => {
     const score = pick._score;
-    const pos = score ? score.position : null;
     const scoreVal = score ? score.score : null;
     const todayScore = score ? score.todayScore : null;
     const thru = score ? score.thru : null;
     const status = score ? score.status : 'active';
-    const isMe = pick.owner === selectedTeam || pick.splitOwner === selectedTeam;
-    const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
+    const isMe = pick._owners.includes(selectedTeam);
+    const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || '—');
     const thruDisplay = thru && thru !== '-' ? thru : '—';
     const todayDisplay = todayScore !== null ? fmtScore(todayScore) : '—';
+    const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
     html += `
       <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
         <div class="field-pos">${posDisplay}</div>
-        <div class="field-name">${canonicalName(pick.name)}</div>
+        <div class="field-name">${pick._canonName}</div>
         <div class="field-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}</div>
         <div class="field-score" style="color:var(--text-dim);font-weight:400">${thruDisplay}</div>
         <div class="field-score ${scoreColor(todayScore)}">${todayDisplay}</div>
-        <div class="field-owner ${isMe ? 'mine' : ''}">${pick.owner.split(' ')[0]}</div>
+        <div class="field-owner ${isMe ? 'mine' : ''}">${ownerDisplay}</div>
       </div>`;
   });
 
