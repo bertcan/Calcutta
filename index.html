@@ -1319,17 +1319,27 @@ function renderMyTeam() {
 // RENDER LEADERBOARD (all teams)
 // ============================================================
 function renderLeaderboard() {
+  // Initialize every team from TEAM_SPEND so all appear even with 0 proj
   const teams = {};
+  Object.keys(TEAM_SPEND).forEach(t => {
+    teams[t] = { spent: TEAM_SPEND[t] || 0, proj: 0 };
+  });
+
   ALL_PICKS.forEach(pick => {
     if (pick.inField && pick.price === 0) return;
-    const owner = pick.owner;
-    if (!teams[owner]) teams[owner] = { spent: TEAM_SPEND[owner] || 0, proj: 0 };
-    
     const score = getScore(pick.name);
     const pos = score ? score.position : null;
-    const ownership = pick.splitPct ? (pick.owner === owner ? (1 - pick.splitPct) : pick.splitPct) : 1.0;
-    const payout = projectedPayout(pos, 87) * ownership;
-    teams[owner].proj += payout;
+    const fullPayout = projectedPayout(pos, 87);
+
+    // Credit primary owner their share
+    const ownerPct = pick.splitPct ? (1 - pick.splitPct) : 1.0;
+    if (teams[pick.owner]) teams[pick.owner].proj += fullPayout * ownerPct;
+
+    // Credit split owner their share
+    if (pick.splitOwner && pick.splitPct) {
+      if (!teams[pick.splitOwner]) teams[pick.splitOwner] = { spent: TEAM_SPEND[pick.splitOwner] || 0, proj: 0 };
+      teams[pick.splitOwner].proj += fullPayout * pick.splitPct;
+    }
   });
 
   // Sort by projected winnings
