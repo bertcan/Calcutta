@@ -1117,16 +1117,17 @@ async function fetchLiveScores() {
       const name = comp.athlete?.displayName;
       if (!name) return;
 
-      // Score to par
+      // Score to par — ESPN uses 'scoreToPar' or 'toPar'
       const stats = Object.fromEntries((comp.statistics || []).map(s => [s.name, s.displayValue]));
-      const toParStr = stats.toPar || 'E';
+      const toParStr = stats.scoreToPar || stats.toPar || 'E';
       let score = 0;
       if (toParStr && toParStr !== 'E' && toParStr !== '--') {
         score = parseInt(toParStr.replace('+', '')) || 0;
       }
 
-      // Position from rank stat
-      let position = parseInt(stats.rank || '') || 999;
+      // Position — prefer status.position, fall back to rank stat
+      const posDisplay = comp.status?.position?.displayName || stats.position || stats.rank || '';
+      let position = parseInt(posDisplay.replace(/^T/, '')) || 999;
 
       // Thru
       const detail = comp.status?.type?.shortDetail || '-';
