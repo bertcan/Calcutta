@@ -1179,19 +1179,8 @@ async function fetchLiveScores() {
         else if (holes > 0) thru = String(holes);
       }
 
-      // Today's round score (to par) from linescores + Augusta par
-      let todayScore = null;
-      if (comp.linescores && comp.linescores.length > 0 && statusState !== 'pre') {
-        const holesPlayed = Math.min(comp.linescores.length, 18);
-        let strokes = 0;
-        for (let i = 0; i < holesPlayed; i++) {
-          const ls = comp.linescores[i];
-          const val = typeof ls === 'number' ? ls : (ls.value || parseInt(ls.displayValue) || 0);
-          strokes += val;
-        }
-        const parForHoles = AUGUSTA_PAR.slice(0, holesPlayed).reduce((a, b) => a + b, 0);
-        todayScore = strokes - parForHoles;
-      }
+      // Today's round score — use total score (R1: they're identical; revisit for R2+)
+      const todayScore = statusState !== 'pre' ? score : null;
 
       // Status
       const sName = comp.status?.type?.name || '';
