@@ -1297,7 +1297,7 @@ function renderLeaderboard() {
     
     const score = getScore(pick.name);
     const pos = score ? score.position : null;
-    const ownership = pick.splitPct ? (pick.owner === team ? (1 - pick.splitPct) : pick.splitPct) : 1.0;
+    const ownership = pick.splitPct ? (pick.owner === owner ? (1 - pick.splitPct) : pick.splitPct) : 1.0;
     const payout = projectedPayout(pos, 87) * ownership;
     teams[owner].proj += payout;
   });
