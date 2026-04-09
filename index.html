@@ -730,7 +730,7 @@ text-overflow: ellipsis;
   <!-- MY TEAM VIEW -->
 
   <div class="view active" id="view-myteam">
-    <div id="debug-panel" style="font-size:10px;word-break:break-all;padding:8px;background:#111;color:#0f0;display:none;white-space:pre-wrap;"></div>
+  
     <div class="team-selector">
       <div class="team-selector-label">Select Your Team</div>
       <div class="team-pills" id="team-pills"></div>
@@ -1113,19 +1113,6 @@ async function fetchLiveScores() {
     const competitors = (event.competitions || [{}])[0].competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
 
-    // Show raw first competitor data in debug panel
-    const c0 = competitors[0];
-    const debugInfo = {
-      name: c0?.athlete?.displayName,
-      score: c0?.score,
-      order: c0?.order,
-      rank: c0?.rank,
-      position: c0?.position,
-      status: c0?.status,
-      linescores: (c0?.linescores||[]).slice(0,1),
-    };
-    const dp = document.getElementById('debug-panel');
-    if (dp) { dp.style.display = 'block'; dp.textContent = JSON.stringify(debugInfo, null, 2); }
 
     const newScores = {};
     competitors.forEach(comp => {
@@ -1140,7 +1127,8 @@ async function fetchLiveScores() {
       }
 
       // Position — try known ESPN locations (debug will reveal correct field)
-      const stats = Object.fromEntries((comp.statistics || []).map(s => [s.name, s.displayValue]));
+      const statsArr = Array.isArray(comp.statistics) ? comp.statistics : [];
+      const stats = Object.fromEntries(statsArr.map(s => [s.name, s.displayValue]));
       const posDisplay = comp.status?.position?.displayName
         || comp.position?.displayName
         || stats.position || stats.rank || String(comp.order || '') || '';
@@ -1183,14 +1171,18 @@ async function fetchLiveScores() {
 // ============================================================
 // GET SCORE FOR PICK
 // ============================================================
+function normalizeName(s) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 function getScore(pickName) {
   const search = searchName(pickName);
   // Try exact match first
   if (liveScores[search]) return liveScores[search];
-  // Fuzzy: last name match
-  const lastName = search.split(' ').pop().toLowerCase();
+  // Fuzzy: normalized last name match (handles diacritics like ø → o)
+  const lastName = normalizeName(search.split(' ').pop());
   for (const key of Object.keys(liveScores)) {
-    if (key.split(' ').pop().toLowerCase() === lastName) return liveScores[key];
+    if (normalizeName(key.split(' ').pop()) === lastName) return liveScores[key];
   }
   return null;
 }
