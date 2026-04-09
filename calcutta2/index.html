@@ -1244,7 +1244,7 @@ async function fetchLiveScores() {
 // GET SCORE FOR PICK
 // ============================================================
 function normalizeName(s) {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[øØ]/g, 'o').toLowerCase();
 }
 
 function getScore(pickName) {
