@@ -1107,10 +1107,14 @@ async function fetchLiveScores() {
       (e.name || '').toLowerCase().includes('augusta')
     ) || (data.events || [])[0];
 
-    if (!event) throw new Error('No golf event found in ESPN response');
+    if (!event) throw new Error(`No golf event found. Events: ${(data.events||[]).map(e=>e.name).join(', ')}`);
 
     const competitors = (event.competitions || [{}])[0].competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
+
+    // Debug: log first competitor structure to console
+    console.log('ESPN event:', event.name);
+    console.log('ESPN first competitor:', JSON.stringify(competitors[0], null, 2));
 
     const newScores = {};
     competitors.forEach(comp => {
