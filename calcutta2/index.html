@@ -1440,9 +1440,9 @@ function renderPrizes() {
     }
   });
 
-  // For each main payout position (1st–8th), show current leader
-  const mainPayouts = PAYOUTS.slice(0, 8); // 1st–8th
-  const bonusPayouts = PAYOUTS.slice(8);   // round lows, highs, amateur
+  // For each main payout position (1st–7th), show current leader
+  const mainPayouts = PAYOUTS.slice(0, 7); // 1st–7th
+  const bonusPayouts = PAYOUTS.slice(7);   // round lows + high rounds
 
   let html = '';
 
@@ -1508,44 +1508,40 @@ function renderPrizes() {
       </div>`;
   });
 
-  // Compute Round 1 Low leader (lowest score among all non-field picks)
-  let r1Low = null, r1LowScore = Infinity;
+  // Compute current low score leader (proxy for round low)
+  let roundLow = null, roundLowScore = Infinity;
+  // Compute current high score leader (proxy for high round)
+  let roundHigh = null, roundHighScore = -Infinity;
   ALL_PICKS.forEach(pick => {
     if (pick.inField || canonicalName(pick.name) === 'Field') return;
     const s = getScore(pick.name);
     if (!s || s.status === 'cut' || s.status === 'wd') return;
-    if (s.score < r1LowScore) { r1LowScore = s.score; r1Low = { pick, score: s }; }
+    if (s.score < roundLowScore)  { roundLowScore  = s.score; roundLow  = { pick, score: s }; }
+    if (s.score > roundHighScore) { roundHighScore = s.score; roundHigh = { pick, score: s }; }
   });
 
-  // Compute Low Amateur leader
-  const amateurPicks = ALL_PICKS.filter(p =>
-    p.name.includes('(a)') || p.name === 'Casey Jarvis'
-  );
-  let lowAm = null, lowAmScore = Infinity;
-  amateurPicks.forEach(pick => {
-    const s = getScore(pick.name);
-    if (!s || s.status === 'cut' || s.status === 'wd') return;
-    if (s.score < lowAmScore) { lowAmScore = s.score; lowAm = { pick, score: s }; }
-  });
-
-  // Bonus payouts (round prizes, amateur) — simpler cards
+  // Bonus payouts (round lows + high rounds) — simpler cards
   html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
   bonusPayouts.forEach((payout, bi) => {
     const payoutAmt = Math.round(payout.pct * TOTAL_POT);
     let bonusPlayer = '—', bonusOwner = '—', bonusScore = '';
+    const isHighRound = payout.place.toLowerCase().includes('high');
 
-    if (bi === 0 && hasScores && r1Low) {
-      // 1st Round Low — live
-      bonusPlayer = canonicalName(r1Low.pick.name);
-      bonusOwner = shortName(r1Low.pick.owner);
-      bonusScore = ' ' + fmtScore(r1Low.score.score);
-    } else if (payout.place === 'Low Amateur' && hasScores && lowAm) {
-      bonusPlayer = canonicalName(lowAm.pick.name);
-      bonusOwner = shortName(lowAm.pick.owner);
-      bonusScore = ' ' + fmtScore(lowAm.score.score);
+    if (hasScores) {
+      if (!isHighRound && roundLow) {
+        // Round Low — show current low score leader
+        bonusPlayer = canonicalName(roundLow.pick.name);
+        bonusOwner = shortName(roundLow.pick.owner);
+        bonusScore = ' ' + fmtScore(roundLow.score.score);
+      } else if (isHighRound && roundHigh) {
+        // High Round — show current high score leader
+        bonusPlayer = canonicalName(roundHigh.pick.name);
+        bonusOwner = shortName(roundHigh.pick.owner);
+        bonusScore = ' ' + fmtScore(roundHigh.score.score);
+      }
     }
 
-    const isLive = (bi === 0 || payout.place === 'Low Amateur') && hasScores;
+    const isLive = hasScores;
     html += `
       <div class="prize-card">
         <div class="prize-top-row">
