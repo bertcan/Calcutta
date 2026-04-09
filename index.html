@@ -1171,10 +1171,12 @@ async function fetchLiveScores() {
       const posDisplay = comp.status?.position?.displayName
         || comp.position?.displayName
         || stats.position || stats.rank || '';
-      let position = parseInt(posDisplay.replace(/^T/, '')) || 999;
-      // Build posStr: add "T" prefix when multiple players share this position
-      const posStr = position < 999
-        ? ((positionCounts[position] || 1) > 1 ? 'T' + position : String(position))
+      const realPos = parseInt(posDisplay.replace(/^T/, ''));
+      // For sorting: use real position, fall back to comp.order so list stays ordered
+      const position = realPos || comp.order || 999;
+      // For display: only show if we have a real leaderboard position (not just sort order)
+      const posStr = realPos
+        ? ((positionCounts[realPos] || 1) > 1 ? 'T' + realPos : String(realPos))
         : '';
 
       // Thru — try shortDetail first, fall back to linescores count
