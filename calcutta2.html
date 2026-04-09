@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Calcutta">
 <meta name="theme-color" content="#1a2e1a">
-<title>TCAFFL Masters Calcutta 2026</title>
+<title>Masters Calcutta 2026 — Htown</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -729,11 +729,10 @@ text-overflow: ellipsis;
       <div class="badge-flag">⛳</div>
       <div>
         <div class="tournament-name">Masters Calcutta 2026</div>
-        <div class="tournament-sub">TCAFFL Invitational</div>
       </div>
     </div>
     <div class="pot-badge">
-      <span class="pot-amount" id="pot-display">$97,700</span>
+      <span class="pot-amount" id="pot-display">$768,600</span>
       <span class="pot-label">Total Pot</span>
     </div>
   </div>
@@ -821,10 +820,6 @@ text-overflow: ellipsis;
   <div class="view" id="view-payouts">
     <div class="section-title">2026 Payout Structure</div>
     <div class="payout-card" id="payout-list"></div>
-    <div class="section-title" style="margin-top:8px">Notes</div>
-    <div class="payout-card">
-      <div class="payout-row"><span style="font-size:12px;color:var(--text-dim);line-height:1.6">Pot based on total auction proceeds of $97,700. Percentages from 2025 TCAFFL rules. Scheffler split into two 50% halves. Round Low/High bonuses paid per round.</span></div>
-    </div>
     <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
   </div>
 
@@ -840,131 +835,143 @@ text-overflow: ellipsis;
 // ============================================================
 // DATA
 // ============================================================
-const TOTAL_POT = 97700;
+// =============================================================
+// TODO: FILL IN GROUP 2 DATA BELOW
+// Send your friend this checklist:
+//   1. Total pot ($)
+//   2. Payout % per place (1st, 2nd, 3rd... round lows, amateur)
+//   3. Each pick: player name, owner, price paid
+//   4. Any splits: player, primary owner + %, split owner + %, $ they paid
+//   5. Which team name to show by default on My Team tab
+// =============================================================
 
-// Augusta National par by hole 1-18
+const TOTAL_POT = 768600;
+
+// Augusta National par by hole 1-18 (same course, keep as-is)
 const AUGUSTA_PAR = [4,5,4,3,4,3,4,5,4, 4,4,3,5,4,5,3,4,4];
 
-// Payout structure (from rules doc, applied to actual pot)
 const PAYOUTS = [
-  { place: '1st Place',       pct: 0.335 },
-  { place: '2nd Place',       pct: 0.165 },
-  { place: '3rd Place',       pct: 0.115 },
-  { place: '4th Place',       pct: 0.09  },
-  { place: '5th Place',       pct: 0.07  },
-  { place: '6th Place',       pct: 0.05  },
-  { place: '7th Place',       pct: 0.035 },
-  { place: '8th Place',       pct: 0.02  },
-  { place: '1st Round Low',   pct: 0.02  },
-  { place: '2nd Round Low',   pct: 0.02  },
-  { place: '3rd Round Low',   pct: 0.02  },
-  { place: '4th Round Low',   pct: 0.02  },
-  { place: '1st Round High',  pct: 0.01  },
-  { place: '2nd Round High',  pct: 0.01  },
-  { place: 'Low Amateur',     pct: 0.02  },
+  { place: '1st Place',       pct: 0.40 },
+  { place: '2nd Place',       pct: 0.18 },
+  { place: '3rd Place',       pct: 0.12 },
+  { place: '4th Place',       pct: 0.08 },
+  { place: '5th Place',       pct: 0.05 },
+  { place: '6th Place',       pct: 0.03 },
+  { place: '7th Place',       pct: 0.02 },
+  { place: '1st Round Low',   pct: 0.02 },
+  { place: '2nd Round Low',   pct: 0.02 },
+  { place: '3rd Round Low',   pct: 0.02 },
+  { place: '4th Round Low',   pct: 0.02 },
+  { place: 'High Round 1',    pct: 0.02 },
+  { place: 'High Round 2',    pct: 0.02 },
 ];
 
-// Full Calcutta picks from XLS
+// TODO: Replace ALL_PICKS with actual auction results
+// Format for a standard pick:
+//   { id: 1, name: 'Player Name', owner: 'Owner Name', price: 1000 }
+// Format for an amateur:
+//   { id: 2, name: 'Player Name (a)', owner: 'Owner Name', price: 200 }
+// Format for a split pick (primary owner + co-owner):
+//   { id: 3, name: 'Player Name', owner: 'Primary Owner', price: 2000,
+//     splitOwner: 'Co-Owner Name', splitPct: 0.50, splitPaid: 1000 }
+//   (splitPct = co-owner's share, splitPaid = $ co-owner paid)
 const ALL_PICKS = [
-  { id: 1,  name: 'Scottie Scheffler (1/2)', owner: 'Carter Hickok',   price: 7150 },
-  { id: 2,  name: 'Scottie Scheffler (2/2)', owner: 'Charles Knowlton',price: 5000 },
-  { id: 3,  name: 'Rory McIlroy',            owner: 'David Turner',    price: 5275 },
-  { id: 4,  name: 'Cameron Young',           owner: 'Carter Hickok',   price: 3900 },
-  { id: 5,  name: 'Tommy Fleetwood',         owner: 'Sam Turtletaub',  price: 2125 },
-  { id: 6,  name: 'J.J. Spaun',             owner: 'Austin Mai',      price: 600  },
-  { id: 7,  name: 'Matt Fitzpatrick',        owner: 'Charles Knowlton',price: 3800 },
-  { id: 8,  name: 'Collin Morikawa',         owner: 'Chase Nixon',     price: 1575 },
-  { id: 9,  name: 'Robert MacIntyre',        owner: 'Sam Turtletaub',  price: 2150, splitOwner: 'Austin Mai', splitPct: 0.333, splitPaid: 716.67 },
-  { id: 10, name: 'Justin Rose',             owner: 'Charles Knowlton',price: 1800 },
-  { id: 11, name: 'Xander Schauffele',       owner: 'Austin Mai',      price: 5550, splitPct: 0.50, splitPaid: 2775 },
-  { id: 12, name: 'Chris Gotterup',          owner: 'David Turner',    price: 1250 },
-  { id: 13, name: 'Russell Henley',          owner: 'Devin Fraker',    price: 1225 },
-  { id: 14, name: 'Sepp Straka',             owner: 'Charles Knowlton',price: 800  },
-  { id: 15, name: 'Hideki Matsuyama',        owner: 'Sam Turtletaub',  price: 2250 },
-  { id: 16, name: 'Justin Thomas',           owner: 'Matt Clayton',    price: 1025 },
-  { id: 17, name: 'Ben Griffin',             owner: 'Travis Francois', price: 525  },
-  { id: 18, name: 'Ludvig Åberg',            owner: 'David Turner',    price: 5075 },
-  { id: 19, name: 'Jacob Bridgeman',         owner: 'Charles Knowlton',price: 700  },
-  { id: 20, name: 'Alexander Noren',         owner: 'Charles Knowlton',price: 225  },
-  { id: 21, name: 'Harris English',          owner: 'Travis Francois', price: 475  },
-  { id: 22, name: 'Akshay Bhatia',           owner: 'Chase Nixon',     price: 1100 },
-  { id: 23, name: 'Viktor Hovland',          owner: 'Devin Fraker',    price: 2025 },
-  { id: 24, name: 'Patrick Reed',            owner: 'Matt Clayton',    price: 1675, splitOwner: 'Austin Mai', splitPct: 0.50, splitPaid: 837.50 },
-  { id: 25, name: 'Bryson DeChambeau',       owner: 'Travis Francois', price: 6050 },
-  { id: 26, name: 'Min Woo Lee',             owner: 'Austin Mai',      price: 1575, splitPct: 0.50, splitPaid: 787.50 },
-  { id: 27, name: 'Keegan Bradley',          owner: 'Matt Clayton',    price: 225  },
-  { id: 28, name: 'Maverick McNealy',        owner: 'Austin Mai',      price: 900  },
-  { id: 29, name: 'Si Woo Kim',              owner: 'Sam Turtletaub',  price: 1325 },
-  { id: 30, name: 'Ryan Gerard',             owner: 'Carter Hickok',   price: 150  },
-  { id: 31, name: 'Jon Rahm',               owner: 'Patrick Sala',    price: 6875 },
-  { id: 32, name: 'Tyrrell Hatton',          owner: 'Charles Knowlton',price: 875  },
-  { id: 33, name: 'Shane Lowry',             owner: 'Sam Turtletaub',  price: 1350 },
-  { id: 34, name: 'Sam Burns',              owner: 'Devin Fraker',    price: 875  },
-  { id: 35, name: 'Kurt Kitayama',           owner: 'Travis Francois', price: 525  },
-  { id: 36, name: 'Patrick Cantlay',         owner: 'Carter Hickok',   price: 925  },
-  { id: 37, name: 'Nicolai Højgaard',        owner: 'Austin Mai',      price: 1000 },
-  { id: 38, name: 'Marco Penge',             owner: 'Patrick Sala',    price: 125  },
-  { id: 39, name: 'Daniel Berger',           owner: 'Patrick Sala',    price: 350  },
-  { id: 40, name: 'Aaron Rai',              owner: 'Travis Francois', price: 275  },
-  { id: 41, name: 'Nicolas Echavarria',      owner: 'David Turner',    price: 150  },
-  { id: 42, name: 'Jason Day',              owner: 'Charles Knowlton',price: 800  },
-  { id: 43, name: 'Jake Knapp',             owner: 'Charles Knowlton',price: 1000 },
-  { id: 44, name: 'Michael Kim',            owner: 'Travis Francois', price: 325  },
-  { id: 45, name: 'Corey Conners',          owner: 'Chase Nixon',     price: 1275 },
-  { id: 46, name: 'Sam Stevens',            owner: 'Sam Braver',      price: 50   },
-  { id: 47, name: 'Kristoffer Reitan',       owner: 'Patrick Sala',    price: 100  },
-  { id: 48, name: 'Michael Brennan',        owner: 'Austin Mai',      price: 12.50, inField: true },
-  { id: 49, name: 'Andrew Novak',           owner: 'Austin Mai',      price: 12.50, inField: true },
-  { id: 50, name: 'Matthew McCarty',        owner: 'Patrick Sala',    price: 150  },
-  { id: 51, name: 'Brian Harman',           owner: 'David Turner',    price: 500  },
-  { id: 52, name: 'Ryan Fox',               owner: 'Matt Clayton',    price: 175  },
-  { id: 53, name: 'Gary Woodland',          owner: 'Charles Knowlton',price: 825  },
-  { id: 54, name: 'Adam Scott',             owner: 'Charles Knowlton',price: 875  },
-  { id: 55, name: 'Sami Välimäki',          owner: 'Matt Clayton',    price: 75   },
-  { id: 56, name: 'Rasmus Højgaard',        owner: 'Chase Nixon',     price: 600  },
-  { id: 57, name: 'Max Greyserman',         owner: 'Carter Hickok',   price: 150  },
-  { id: 58, name: 'Jordan Spieth',          owner: 'Patrick Sala',    price: 1350 },
-  { id: 59, name: 'Harry Hall',             owner: 'Travis Francois', price: 275  },
-  { id: 60, name: 'John Keefer',            owner: 'Austin Mai',      price: 12.50, inField: true },
-  { id: 61, name: 'Nick Taylor',            owner: 'Chase Nixon',     price: 125  },
-  { id: 62, name: 'Rasmus Neergaard-Petersen', owner: 'David Turner', price: 100  },
-  { id: 63, name: 'Casey Jarvis',           owner: 'Austin Mai',      price: 12.50, inField: true },
-  { id: 64, name: 'Sungjae Im',             owner: 'Sam Turtletaub',  price: 950  },
-  { id: 65, name: 'Aldrich Potgieter',      owner: 'Patrick Sala',    price: 75   },
-  { id: 66, name: 'Wyndham Clark',          owner: 'Matt Clayton',    price: 325  },
-  { id: 67, name: 'Hao-Tong Li',            owner: 'Sam Turtletaub',  price: 225  },
-  { id: 68, name: 'Tom McKibbin',           owner: 'Matt Clayton',    price: 50   },
-  { id: 69, name: 'Brian Campbell',         owner: 'Matt Clayton',    price: 200  },
-  { id: 70, name: 'Davis Riley',            owner: 'Matt Clayton',    price: 50   },
-  { id: 71, name: 'Carlos Ortiz',           owner: 'Carter Hickok',   price: 125  },
-  { id: 72, name: 'Max Homa',              owner: 'Carter Hickok',   price: 725  },
-  { id: 73, name: 'Brooks Koepka',         owner: 'Charles Knowlton',price: 1375 },
-  { id: 74, name: 'Mason Howell (a)',       owner: 'Charles Knowlton',price: 400  },
-  { id: 75, name: 'Ethan Fang (a)',         owner: 'Matt Clayton',    price: 275  },
-  { id: 76, name: 'Jackson Herrington (a)', owner: 'Carter Hickok',   price: 100  },
-  { id: 77, name: 'Mateo Pulcini (a)',      owner: 'Matt Clayton',    price: 100  },
-  { id: 78, name: 'Brandon Holtz (a)',      owner: 'Travis Francois', price: 350  },
-  { id: 79, name: 'Fifa Laopakdee (a)',     owner: 'Matt Clayton',    price: 350  },
-  { id: 80, name: 'Danny Willett',          owner: 'Matt Clayton',    price: 100  },
-  { id: 81, name: 'Mike Weir',             owner: 'Travis Francois', price: 50   },
-  { id: 82, name: 'Bubba Watson',          owner: 'Travis Francois', price: 175  },
-  { id: 83, name: 'Fred Couples',          owner: 'Matt Clayton',    price: 125  },
-  { id: 84, name: 'Naoyuki Kataoka',       owner: 'Travis Francois', price: 50   },
-  { id: 85, name: 'Dustin Johnson',        owner: 'Matt Clayton',    price: 225  },
-  { id: 86, name: 'Sergio Garcia',         owner: 'Matt Clayton',    price: 200  },
-  { id: 87, name: 'Angel Cabrera',         owner: 'Travis Francois', price: 275  },
-  { id: 88, name: 'Cameron Smith',         owner: 'Devin Fraker',    price: 850  },
-  { id: 89, name: 'Vijay Singh',           owner: 'Travis Francois', price: 75   },
-  { id: 90, name: 'José María Olazábal',   owner: 'Matt Clayton',    price: 50   },
-  { id: 91, name: 'Charl Schwartzel',      owner: 'Chase Nixon',     price: 50   },
-  { id: 92, name: 'Zach Johnson',          owner: 'Travis Francois', price: 175  },
+  // Pool A
+  { id:  1, name: 'Jose Maria Olazabal',  owner: 'Bowen',       price:  1500 },
+  { id:  2, name: 'Brandon Holtz (a)',     owner: 'Harvey',      price:  1900 },
+  { id:  3, name: 'Angel Cabrera',         owner: 'Bowen',       price:  1200 },
+  { id:  4, name: 'Aldrich Potgieter',     owner: 'Sims',        price:  2000 },
+  { id:  5, name: 'Dustin Johnson',        owner: 'Barton',      price:  1400 },
+  { id:  6, name: 'Sungjae Im',            owner: 'Sims',        price:  3800 },
+  { id:  7, name: 'Michael Kim',           owner: 'Schuhmacher', price:  2000 },
+  { id:  8, name: 'Johnny Keefer',         owner: 'Sims',        price:  1700 },
+  { id:  9, name: 'Brian Harman',          owner: 'Harvey',      price:  1900 },
+  { id: 10, name: 'Aaron Rai',             owner: 'Barton',      price:  1400 },
+  { id: 11, name: 'Carlos Ortiz',          owner: 'Sims',        price:  2400 },
+  { id: 12, name: 'Rasmus Hojgaard',       owner: 'Wynne',       price:  2900 },
+  { id: 13, name: 'Nick Taylor',           owner: 'Wynne',       price:  1800 },
+  { id: 14, name: 'Justin Thomas',         owner: 'McConn',      price:  6500 },
+  { id: 15, name: 'Harry Hall',            owner: 'Harvey',      price:  2800 },
+  { id: 16, name: 'Ben Griffin',           owner: 'Sims',        price:  3200 },
+  { id: 17, name: 'Nicolai Hojgaard',      owner: 'Rynd',        price:  9000 },
+  { id: 18, name: 'Sam Burns',             owner: 'Sims',        price:  4700 },
+  { id: 19, name: 'Jake Knapp',            owner: 'Harvey',      price: 10000 },
+  { id: 20, name: 'Hideki Matsuyama',      owner: 'Jimmy',       price: 18500 },
+  { id: 21, name: 'Russell Henley',        owner: 'Wynne',       price:  9500 },
+  { id: 22, name: 'Xander Schauffele',     owner: 'McConn',      price: 36000 },
+  // Pool B
+  { id: 23, name: 'Mateo Pulcini (a)',             owner: 'Wynne',       price:  1500 },
+  { id: 24, name: 'Mason Howell (a)',               owner: 'Barton',      price:  1500 },
+  { id: 25, name: 'Fred Couples',                   owner: 'Sims',        price:  1500 },
+  { id: 26, name: 'Davis Riley',                    owner: 'Sims',        price:  1500 },
+  { id: 27, name: 'Zach Johnson',                   owner: 'Wynne',       price:  1500 },
+  { id: 28, name: 'Andrew Novak',                   owner: 'Sims',        price:  1500 },
+  { id: 29, name: 'Rasmus Neergaard-Petersen',      owner: 'Sims',        price:  1500 },
+  { id: 30, name: 'Kristoffer Reitan',              owner: 'Sims',        price:  1500 },
+  { id: 31, name: 'Wyndham Clark',                  owner: 'Barton',      price:  2500 },
+  { id: 32, name: 'Nico Echavarria',                owner: 'Wynne',       price:  2000 },
+  { id: 33, name: 'Tyrrell Hatton',                 owner: 'Bowen',       price:  6000 },
+  { id: 34, name: 'Daniel Berger',                  owner: 'Harvey',      price:  4000 },
+  { id: 35, name: 'Keegan Bradley',                 owner: 'Barton',      price:  3000 },
+  { id: 36, name: 'Jason Day',                      owner: 'Selber',      price:  6500 },
+  { id: 37, name: 'J.J. Spaun',                     owner: 'Wynne',       price:  5000 },
+  { id: 38, name: 'Shane Lowry',                    owner: 'Sims',        price:  8000 },
+  { id: 39, name: 'Chris Gotterup',                 owner: 'Sims',        price:  8500 },
+  { id: 40, name: 'Maverick McNealy',               owner: 'Wynne',       price:  7500 },
+  { id: 41, name: 'Jacob Bridgeman',                owner: 'Wynne',       price:  6500 },
+  { id: 42, name: 'Collin Morikawa',                owner: 'Sims',        price: 12000 },
+  { id: 43, name: 'Robert MacIntyre',               owner: 'Barton',      price: 16000 },
+  { id: 44, name: 'Cameron Young',                  owner: 'Rynd',        price: 27000 },
+  { id: 45, name: 'Scottie Scheffler',              owner: 'Schuhmacher', price: 72000 },
+  // Pool C
+  { id: 46, name: 'Vijay Singh',           owner: 'Harvey',  price:  1500 },
+  { id: 47, name: 'Naoyuki Kataoka',       owner: 'Barton',  price:  2000 },
+  { id: 48, name: 'Ethan Fang (a)',        owner: 'Sims',    price:  1000 },
+  { id: 49, name: 'Brian Campbell',        owner: 'Harvey',  price:  1000 },
+  { id: 50, name: 'Charl Schwartzel',      owner: 'Jimmy',   price:  1000 },
+  { id: 51, name: 'Sami Valimaki',         owner: 'Barton',  price:  1000 },
+  { id: 52, name: 'Max Homa',              owner: 'Barton',  price:  5000 },
+  { id: 53, name: 'Tom McKibbin',          owner: 'Pitt',    price:  1000 },
+  { id: 54, name: 'Haotong Li',            owner: 'Jimmy',   price:  2500 },
+  { id: 55, name: 'Marco Penge',           owner: 'Bowen',   price:  4500 },
+  { id: 56, name: 'Matt McCarty',          owner: 'Wynne',   price:  1500 },
+  { id: 57, name: 'Casey Jarvis',          owner: 'Jimmy',   price:  2000 },
+  { id: 58, name: 'Sam Stevens',           owner: 'Kerns',   price:  2000 },
+  { id: 59, name: 'Corey Conners',         owner: 'McConn',  price:  7500 },
+  { id: 60, name: 'Justin Rose',           owner: 'Jimmy',   price: 14000 },
+  { id: 61, name: 'Jordan Spieth',         owner: 'Rynd',    price: 13000 },
+  { id: 62, name: 'Harris English',        owner: 'Selber',  price:  6000 },
+  { id: 63, name: 'Viktor Hovland',        owner: 'Pitt',    price:  8000 },
+  { id: 64, name: 'Patrick Cantlay',       owner: 'Jimmy',   price:  7000 },
+  { id: 65, name: 'Min Woo Lee',           owner: 'Wynne',   price: 16000 },
+  { id: 66, name: 'Bryson DeChambeau',     owner: 'McConn',  price: 44000 },
+  { id: 67, name: 'Tommy Fleetwood',       owner: 'Barton',  price: 25000 },
+  { id: 68, name: 'Jon Rahm',              owner: 'Bowen',   price: 57000 },
+  // Pool D
+  { id: 69, name: 'Mike Weir',                owner: 'Jimmy',   price:  2000 },
+  { id: 70, name: 'Fifa Laopakdee (a)',        owner: 'Harvey',  price:  2500 },
+  { id: 71, name: 'Jackson Herrington (a)',    owner: 'Barton',  price:  1500 },
+  { id: 72, name: 'Danny Willett',             owner: 'Kerns',   price:  2000 },
+  { id: 73, name: 'Bubba Watson',              owner: 'Selber',  price:  2000 },
+  { id: 74, name: 'Sergio Garcia',             owner: 'Bowen',   price:  2000 },
+  { id: 75, name: 'Michael Brennan',           owner: 'Wynne',   price:  1000 },
+  { id: 76, name: 'Brooks Koepka',             owner: 'Kerns',   price: 10000 },
+  { id: 77, name: 'Cameron Smith',             owner: 'Barton',  price:  7000 },
+  { id: 78, name: 'Max Greyserman',            owner: 'Sims',    price:  1500 },
+  { id: 79, name: 'Gary Woodland',             owner: 'Kerns',   price:  5000 },
+  { id: 80, name: 'Ryan Fox',                  owner: 'Pitt',    price:  2000 },
+  { id: 81, name: 'Patrick Reed',              owner: 'Selber',  price: 16000 },
+  { id: 82, name: 'Kurt Kitayama',             owner: 'Sims',    price:  5000 },
+  { id: 83, name: 'Ryan Gerard',               owner: 'Wynne',   price:  4000 },
+  { id: 84, name: 'Adam Scott',                owner: 'Wynne',   price:  6000 },
+  { id: 85, name: 'Sepp Straka',               owner: 'Selber',  price:  7000 },
+  { id: 86, name: 'Alex Noren',                owner: 'Harvey',  price:  4500 },
+  { id: 87, name: 'Akshay Bhatia',             owner: 'McConn',  price:  9500 },
+  { id: 88, name: 'Si Woo Kim',                owner: 'Sims',    price: 14000 },
+  { id: 89, name: 'Ludvig Aberg',              owner: 'Rynd',    price: 37000 },
+  { id: 90, name: 'Matt Fitzpatrick',          owner: 'Harvey',  price: 36000 },
+  { id: 91, name: 'Rory McIlroy',              owner: 'Jimmy',   price: 43000 },
 ];
-
-// Austin's direct picks (canonical)
-// selectedTeam drives team identity
-
-// Scottie tracked separately (Northwood pool)
-const SCOTTIE_TRACK = { name: 'Scottie Scheffler', pool: 'Northwood', price: 6300, note: 'Separate pool — track only' };
 
 // Team spend — computed accurately from pick data (accounts for known splits)
 const TEAM_SPEND = {};
@@ -986,7 +993,7 @@ const ALL_TEAMS = Object.keys(TEAM_SPEND).sort((a, b) => TEAM_SPEND[b] - TEAM_SP
 let liveScores = {};
 let lastFetch = null;
 let isFetching = false;
-let selectedTeam = 'Austin Mai';
+let selectedTeam = 'Rynd';
 
 // ============================================================
 // HELPERS
@@ -1071,7 +1078,6 @@ function projectedPayout(position, totalPlayers) {
     5: PAYOUTS[4].pct,
     6: PAYOUTS[5].pct,
     7: PAYOUTS[6].pct,
-    8: PAYOUTS[7].pct,
   };
   return (payoutMap[position] || 0) * TOTAL_POT;
 }
