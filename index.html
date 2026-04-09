@@ -1118,10 +1118,11 @@ async function fetchLiveScores() {
     const debugInfo = {
       name: c0?.athlete?.displayName,
       score: c0?.score,
-      statistics: c0?.statistics,
-      statusPosition: c0?.status?.position,
-      statusShortDetail: c0?.status?.type?.shortDetail,
-      statusName: c0?.status?.type?.name,
+      order: c0?.order,
+      rank: c0?.rank,
+      position: c0?.position,
+      status: c0?.status,
+      linescores: (c0?.linescores||[]).slice(0,1),
     };
     const dp = document.getElementById('debug-panel');
     if (dp) { dp.style.display = 'block'; dp.textContent = JSON.stringify(debugInfo, null, 2); }
@@ -1131,19 +1132,19 @@ async function fetchLiveScores() {
       const name = comp.athlete?.displayName;
       if (!name) return;
 
-      // Score to par — try all known ESPN field names
-      const stats = Object.fromEntries((comp.statistics || []).map(s => [s.name, s.displayValue]));
-      const toParStr = stats.scoreToPar || stats.toPar || stats.score || 'E';
+      // Score to par — comp.score is a direct string like "-4", "E", "+2"
+      const toParStr = (typeof comp.score === 'string' ? comp.score : comp.score?.displayValue) || 'E';
       let score = 0;
       if (toParStr && toParStr !== 'E' && toParStr !== '--') {
         score = parseInt(toParStr.replace('+', '')) || 0;
       }
 
-      // Position — try all known ESPN locations
+      // Position — try known ESPN locations (debug will reveal correct field)
+      const stats = Object.fromEntries((comp.statistics || []).map(s => [s.name, s.displayValue]));
       const posDisplay = comp.status?.position?.displayName
-        || comp.status?.type?.shortDetail
-        || stats.position || stats.rank || '';
-      let position = parseInt(posDisplay.replace(/^T/, '').replace(/[^0-9-]/g, '')) || 999;
+        || comp.position?.displayName
+        || stats.position || stats.rank || String(comp.order || '') || '';
+      let position = parseInt(posDisplay.replace(/^T/, '')) || 999;
 
       // Thru
       const detail = comp.status?.type?.shortDetail || '-';
