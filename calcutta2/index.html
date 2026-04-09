@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Calcutta">
+<meta name="theme-color" content="#1a2e1a">
+<title>Masters Calcutta 2026 — Htown</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green-deep: #0d1f0d;
+    --green-dark: #1a2e1a;
+    --green-mid: #2d4a2d;
+    --green-accent: #4a7c4a;
+    --green-light: #6aab5a;
+    --gold: #c9a84c;
+    --gold-light: #e8c97a;
+    --cream: #f5f0e8;
+    --white: #ffffff;
+    --red: #c0392b;
+    --red-light: #e74c3c;
+    --text-dim: rgba(245,240,232,0.5);
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+body {
+background: var(--green-deep);
+color: var(--cream);
+font-family: ‘DM Mono’, monospace;
+min-height: 100vh;
+min-height: -webkit-fill-available;
+overflow-x: hidden;
+}
+
+/* Augusta-style grass texture overlay */
+body::before {
+content: ‘’;
+position: fixed;
+inset: 0;
+background-image:
+repeating-linear-gradient(
+90deg,
+transparent,
+transparent 40px,
+rgba(255,255,255,0.01) 40px,
+rgba(255,255,255,0.01) 41px
+),
+repeating-linear-gradient(
+0deg,
+transparent,
+transparent 40px,
+rgba(255,255,255,0.01) 40px,
+rgba(255,255,255,0.01) 41px
+);
+pointer-events: none;
+z-index: 0;
+}
+
+/* ===== HEADER ===== */
+.header {
+position: sticky;
+top: 0;
+z-index: 100;
+background: linear-gradient(180deg, var(--green-deep) 0%, rgba(13,31,13,0.97) 100%);
+padding: calc(var(--safe-top) + 12px) 16px 12px;
+border-bottom: 1px solid rgba(201,168,76,0.3);
+backdrop-filter: blur(20px);
+}
+
+.header-top {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 4px;
+}
+
+.tournament-badge {
+display: flex;
+align-items: center;
+gap: 8px;
+}
+
+.badge-flag {
+width: 28px;
+height: 28px;
+background: var(--gold);
+border-radius: 50%;
+display: flex;
+align-items: center;
+justify-content: center;
+font-size: 14px;
+flex-shrink: 0;
+}
+
+.tournament-name {
+font-family: ‘Playfair Display’, serif;
+font-size: 13px;
+font-weight: 700;
+color: var(--gold);
+letter-spacing: 0.5px;
+line-height: 1.2;
+}
+
+.tournament-sub {
+font-size: 9px;
+color: var(--text-dim);
+letter-spacing: 1px;
+text-transform: uppercase;
+}
+
+.pot-badge {
+text-align: right;
+}
+
+.pot-amount {
+font-family: ‘Playfair Display’, serif;
+font-size: 18px;
+font-weight: 900;
+color: var(--gold);
+}
+
+.pot-label {
+font-size: 8px;
+color: var(--text-dim);
+letter-spacing: 1px;
+text-transform: uppercase;
+display: block;
+text-align: right;
+}
+
+/* ===== TABS ===== */
+.tabs {
+display: flex;
+gap: 4px;
+padding: 10px 16px;
+background: var(--green-deep);
+border-bottom: 1px solid rgba(255,255,255,0.05);
+overflow-x: auto;
+scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+flex-shrink: 0;
+padding: 7px 14px;
+border-radius: 20px;
+font-size: 11px;
+font-family: ‘DM Mono’, monospace;
+font-weight: 500;
+letter-spacing: 0.5px;
+border: 1px solid transparent;
+cursor: pointer;
+transition: all 0.2s;
+white-space: nowrap;
+}
+
+.tab.active {
+background: var(--gold);
+color: var(--green-deep);
+font-weight: 700;
+border-color: var(--gold);
+}
+
+.tab:not(.active) {
+color: var(--text-dim);
+border-color: rgba(255,255,255,0.1);
+background: rgba(255,255,255,0.03);
+}
+
+/* ===== MAIN CONTENT ===== */
+.content {
+position: relative;
+z-index: 1;
+padding: 0 0 calc(var(--safe-bottom) + 80px);
+}
+
+.view { display: none; }
+.view.active { display: block; }
+
+/* ===== MY TEAM VIEW ===== */
+.my-team-header {
+background: linear-gradient(135deg, var(--green-mid) 0%, var(--green-dark) 100%);
+margin: 12px;
+border-radius: 16px;
+padding: 16px;
+border: 1px solid rgba(201,168,76,0.2);
+}
+
+.team-name-display {
+font-family: ‘Playfair Display’, serif;
+font-size: 22px;
+font-weight: 900;
+color: var(--gold);
+margin-bottom: 12px;
+}
+
+.team-stats {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 8px;
+}
+
+.stat-box {
+background: rgba(0,0,0,0.2);
+border-radius: 10px;
+padding: 10px 8px;
+text-align: center;
+border: 1px solid rgba(255,255,255,0.05);
+}
+
+.stat-value {
+font-family: ‘Playfair Display’, serif;
+font-size: 16px;
+font-weight: 700;
+color: var(--gold-light);
+display: block;
+}
+
+.stat-label {
+font-size: 8px;
+color: var(--text-dim);
+letter-spacing: 0.8px;
+text-transform: uppercase;
+margin-top: 2px;
+display: block;
+}
+
+/* ===== PLAYER CARDS ===== */
+.section-title {
+font-size: 9px;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(--text-dim);
+padding: 16px 16px 8px;
+}
+
+.player-card {
+background: var(--green-dark);
+margin: 0 12px 8px;
+border-radius: 14px;
+padding: 14px;
+border: 1px solid rgba(255,255,255,0.06);
+display: flex;
+align-items: center;
+gap: 12px;
+position: relative;
+overflow: hidden;
+transition: transform 0.15s;
+cursor: pointer;
+}
+
+.player-card:active { transform: scale(0.98); }
+
+.player-card.made-cut { border-left: 3px solid var(--green-light); }
+.player-card.missed-cut { border-left: 3px solid var(--red); opacity: 0.6; }
+.player-card.leader { border-left: 3px solid var(--gold); }
+
+.player-card::before {
+content: ‘’;
+position: absolute;
+top: 0; right: 0;
+width: 60px; height: 100%;
+background: linear-gradient(90deg, transparent, rgba(255,255,255,0.02));
+pointer-events: none;
+}
+
+.pos-badge {
+width: 38px;
+height: 38px;
+border-radius: 10px;
+display: flex;
+align-items: center;
+justify-content: center;
+font-family: ‘Playfair Display’, serif;
+font-size: 14px;
+font-weight: 700;
+flex-shrink: 0;
+background: var(--green-mid);
+color: var(--cream);
+}
+
+.pos-badge.top3 { background: var(--gold); color: var(--green-deep); }
+.pos-badge.top10 { background: var(--green-accent); color: var(--cream); }
+.pos-badge.missed { background: rgba(192,57,43,0.2); color: var(--red-light); }
+
+.player-info { flex: 1; min-width: 0; }
+
+.player-name {
+font-family: ‘Playfair Display’, serif;
+font-size: 15px;
+font-weight: 700;
+color: var(--white);
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+
+.player-meta {
+display: flex;
+gap: 8px;
+align-items: center;
+margin-top: 3px;
+flex-wrap: wrap;
+}
+
+.player-score {
+font-size: 12px;
+font-weight: 500;
+}
+
+.score-under { color: var(--red-light); }
+.score-over { color: var(--text-dim); }
+.score-even { color: var(--cream); }
+
+.split-tag {
+font-size: 8px;
+padding: 2px 6px;
+border-radius: 4px;
+background: rgba(201,168,76,0.15);
+color: var(--gold);
+border: 1px solid rgba(201,168,76,0.3);
+letter-spacing: 0.5px;
+white-space: nowrap;
+}
+
+.player-right {
+text-align: right;
+flex-shrink: 0;
+}
+
+.proj-win {
+font-family: ‘Playfair Display’, serif;
+font-size: 15px;
+font-weight: 700;
+color: var(--gold-light);
+}
+
+.proj-win.zero { color: var(--text-dim); font-size: 13px; }
+
+.cost-label {
+font-size: 9px;
+color: var(--text-dim);
+display: block;
+margin-top: 1px;
+}
+
+/* ===== LEADERBOARD VIEW ===== */
+.leaderboard-table {
+margin: 12px;
+border-radius: 16px;
+overflow: hidden;
+border: 1px solid rgba(255,255,255,0.06);
+}
+
+.lb-header {
+background: var(--green-mid);
+display: grid;
+grid-template-columns: 32px 1fr 55px 65px 52px;
+gap: 6px;
+padding: 10px 14px;
+font-size: 8px;
+letter-spacing: 1px;
+text-transform: uppercase;
+color: var(--text-dim);
+}
+
+.lb-row {
+display: grid;
+grid-template-columns: 32px 1fr 55px 65px 52px;
+gap: 6px;
+padding: 12px 14px;
+background: var(--green-dark);
+border-bottom: 1px solid rgba(255,255,255,0.04);
+align-items: center;
+transition: background 0.15s;
+cursor: pointer;
+}
+
+.lb-row:last-child { border-bottom: none; }
+.lb-row:active { background: var(--green-mid); }
+.lb-row.highlight { background: rgba(201,168,76,0.08); }
+.lb-row.highlight .lb-team { color: var(--gold); }
+
+.lb-rank {
+font-family: ‘Playfair Display’, serif;
+font-size: 16px;
+font-weight: 700;
+color: var(--text-dim);
+text-align: center;
+}
+
+.lb-rank.gold { color: var(--gold); }
+.lb-rank.silver { color: #aaa; }
+.lb-rank.bronze { color: #cd7f32; }
+
+.lb-team {
+font-family: ‘Playfair Display’, serif;
+font-size: 14px;
+font-weight: 700;
+color: var(--cream);
+}
+
+.lb-spent {
+font-size: 11px;
+color: var(--text-dim);
+text-align: right;
+}
+
+.lb-proj {
+font-family: ‘Playfair Display’, serif;
+font-size: 14px;
+font-weight: 700;
+color: var(--gold-light);
+text-align: right;
+}
+
+.lb-proj.negative { color: var(--red-light); font-size: 12px; }
+
+/* ===== FIELD VIEW ===== */
+.field-header, .field-player {
+display: grid;
+grid-template-columns: 40px 1fr 42px 42px 48px 72px;
+align-items: center;
+padding: 8px 12px;
+}
+
+.field-header {
+font-size: 10px;
+color: var(--text-dim);
+font-weight: 700;
+letter-spacing: 0.06em;
+text-transform: uppercase;
+border-bottom: 1px solid rgba(255,255,255,0.12);
+position: sticky;
+top: 0;
+background: var(--green-dark);
+z-index: 1;
+}
+
+.field-player {
+border-bottom: 1px solid rgba(255,255,255,0.04);
+transition: background 0.15s;
+}
+
+.field-player:active { background: rgba(255,255,255,0.03); }
+
+.field-pos {
+font-size: 11px;
+color: var(--text-dim);
+text-align: center;
+font-weight: 600;
+}
+
+.field-name {
+font-size: 13px;
+color: var(--cream);
+font-family: ‘Playfair Display’, serif;
+font-weight: 600;
+padding-right: 4px;
+}
+
+.field-score {
+font-size: 12px;
+font-weight: 600;
+text-align: center;
+}
+
+.field-owner {
+font-size: 10px;
+color: var(--text-dim);
+text-align: right;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+
+.field-owner.mine { color: var(--gold); font-weight: 600; }
+
+/* ===== PAYOUTS VIEW ===== */
+.payout-card {
+background: var(--green-dark);
+margin: 8px 12px;
+border-radius: 12px;
+overflow: hidden;
+border: 1px solid rgba(255,255,255,0.06);
+}
+
+.payout-row {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 11px 16px;
+border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.payout-row:last-child { border-bottom: none; }
+.payout-row.top { background: rgba(201,168,76,0.06); }
+
+.payout-place {
+font-family: ‘Playfair Display’, serif;
+font-size: 14px;
+font-weight: 700;
+color: var(--cream);
+}
+
+.payout-pct { font-size: 11px; color: var(--text-dim); }
+
+.payout-amt {
+font-family: ‘Playfair Display’, serif;
+font-size: 15px;
+font-weight: 700;
+color: var(--gold);
+}
+
+/* ===== REFRESH BUTTON ===== */
+.refresh-bar {
+position: fixed;
+bottom: calc(var(--safe-bottom) + 12px);
+left: 50%;
+transform: translateX(-50%);
+z-index: 200;
+}
+
+.refresh-btn {
+background: var(--gold);
+color: var(--green-deep);
+border: none;
+padding: 12px 28px;
+border-radius: 30px;
+font-family: ‘DM Mono’, monospace;
+font-size: 12px;
+font-weight: 700;
+letter-spacing: 0.5px;
+cursor: pointer;
+box-shadow: 0 4px 20px rgba(201,168,76,0.4);
+display: flex;
+align-items: center;
+gap: 8px;
+transition: all 0.2s;
+white-space: nowrap;
+}
+
+.refresh-btn:active { transform: scale(0.95); }
+.refresh-btn.loading { opacity: 0.7; }
+
+.spin { animation: spin 1s linear infinite; display: inline-block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ===== LAST UPDATED ===== */
+.last-updated {
+text-align: center;
+font-size: 9px;
+color: var(--text-dim);
+padding: 8px;
+letter-spacing: 0.5px;
+}
+
+/* ===== POWERED BY FOOTER ===== */
+.powered-by {
+text-align: center;
+font-size: 9px;
+color: var(--text-dim);
+padding: 12px 8px 20px;
+letter-spacing: 0.5px;
+opacity: 0.5;
+}
+
+/* ===== EMPTY STATE ===== */
+.empty-state {
+text-align: center;
+padding: 40px 20px;
+color: var(--text-dim);
+font-size: 12px;
+line-height: 1.8;
+}
+
+.empty-icon { font-size: 36px; margin-bottom: 12px; }
+
+/* ===== ANIMATIONS ===== */
+@keyframes fadeIn {
+from { opacity: 0; transform: translateY(8px); }
+to { opacity: 1; transform: translateY(0); }
+}
+
+.player-card, .lb-row, .field-player {
+animation: fadeIn 0.3s ease both;
+}
+
+.score-flash {
+animation: flash 0.5s ease;
+}
+
+@keyframes flash {
+0%, 100% { background: inherit; }
+50% { background: rgba(201,168,76,0.15); }
+}
+
+/* ===== TEAM SELECTOR ===== */
+.team-selector {
+padding: 10px 12px 4px;
+}
+.team-selector-label {
+font-size: 8px;
+letter-spacing: 1.5px;
+text-transform: uppercase;
+color: var(--text-dim);
+margin-bottom: 8px;
+}
+.team-pills {
+display: flex;
+gap: 6px;
+flex-wrap: wrap;
+}
+.team-pill {
+padding: 6px 12px;
+border-radius: 20px;
+font-size: 11px;
+font-family: ‘DM Mono’, monospace;
+font-weight: 500;
+border: 1px solid rgba(255,255,255,0.12);
+background: rgba(255,255,255,0.04);
+color: var(--text-dim);
+cursor: pointer;
+transition: all 0.15s;
+white-space: nowrap;
+}
+.team-pill:active { transform: scale(0.95); }
+.team-pill.selected {
+background: var(--gold);
+color: var(--green-deep);
+border-color: var(--gold);
+font-weight: 700;
+}
+
+/* ===== MULTIPLE BADGE ===== */
+.multiple-val {
+font-family: ‘Playfair Display’, serif;
+font-size: 16px;
+font-weight: 700;
+}
+.multiple-pos { color: var(--green-light); }
+.multiple-neg { color: var(--red-light); }
+.multiple-neutral { color: var(--cream); }
+
+/* ===== ENHANCED PRIZE TABLE ===== */
+.prize-card {
+background: var(--green-dark);
+margin: 0 12px 8px;
+border-radius: 14px;
+border: 1px solid rgba(255,255,255,0.06);
+overflow: hidden;
+}
+.prize-card.top-payout { border-color: rgba(201,168,76,0.25); }
+
+.prize-top-row {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 12px 14px 8px;
+border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.prize-place {
+font-family: ‘Playfair Display’, serif;
+font-size: 15px;
+font-weight: 700;
+color: var(--cream);
+}
+.prize-place.gold-text { color: var(--gold); }
+.prize-pct {
+font-size: 10px;
+color: var(--text-dim);
+margin-left: 6px;
+}
+.prize-amount {
+font-family: ‘Playfair Display’, serif;
+font-size: 17px;
+font-weight: 900;
+color: var(--gold-light);
+}
+
+.prize-bottom-row {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 0;
+}
+.prize-cell {
+padding: 8px 14px;
+border-right: 1px solid rgba(255,255,255,0.04);
+border-top: none;
+}
+.prize-cell:last-child { border-right: none; }
+.prize-cell:nth-child(3), .prize-cell:nth-child(4) {
+border-top: 1px solid rgba(255,255,255,0.04);
+}
+.prize-cell-label {
+font-size: 8px;
+letter-spacing: 0.8px;
+text-transform: uppercase;
+color: var(--text-dim);
+margin-bottom: 3px;
+}
+.prize-cell-value {
+font-size: 13px;
+color: var(--cream);
+font-weight: 500;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.prize-cell-value.highlight { color: var(--gold); font-weight: 700; }
+.prize-cell-value.green { color: var(--green-light); }
+.prize-cell-value.dim { color: var(--text-dim); font-style: italic; }
+</style>
+
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="tournament-badge">
+      <div class="badge-flag">⛳</div>
+      <div>
+        <div class="tournament-name">Masters Calcutta 2026</div>
+      </div>
+    </div>
+    <div class="pot-badge">
+      <span class="pot-amount" id="pot-display">$768,600</span>
+      <span class="pot-label">Total Pot</span>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('myteam', this)">⭐ My Team</button>
+  <button class="tab" onclick="switchTab('leaderboard', this)">🏆 Standings</button>
+  <button class="tab" onclick="switchTab('field', this)">📋 Field</button>
+  <button class="tab" onclick="switchTab('prizes', this)">🏅 Prizes</button>
+  <button class="tab" onclick="switchTab('payouts', this)">💰 Payouts</button>
+</div>
+
+<div class="content">
+
+  <!-- MY TEAM VIEW -->
+
+  <div class="view active" id="view-myteam">
+  
+    <div class="team-selector">
+      <div class="team-selector-label">Select Your Team</div>
+      <div class="team-pills" id="team-pills"></div>
+    </div>
+    <div class="my-team-header" style="margin-top:8px">
+      <div class="team-name-display" id="team-name-display">Team Austin</div>
+      <div class="team-stats">
+        <div class="stat-box">
+          <span class="stat-value" id="team-invested">$9,675</span>
+          <span class="stat-label">Invested</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value" id="team-proj">—</span>
+          <span class="stat-label">Proj. Win</span>
+        </div>
+        <div class="stat-box">
+          <span class="stat-value multiple-neutral" id="team-multiple">—</span>
+          <span class="stat-label">Multiple</span>
+        </div>
+      </div>
+    </div>
+    <div class="section-title">Players</div>
+    <div id="my-players-list"></div>
+    <div class="last-updated" id="team-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
+  </div>
+
+  <!-- LEADERBOARD VIEW -->
+
+  <div class="view" id="view-leaderboard">
+    <div class="section-title">Calcutta Standings — Projected Winnings</div>
+    <div class="leaderboard-table">
+      <div class="lb-header">
+        <div>#</div>
+        <div>Team</div>
+        <div style="text-align:right">Spent</div>
+        <div style="text-align:right">Proj $</div>
+        <div style="text-align:right">Multi</div>
+      </div>
+      <div id="lb-rows"></div>
+    </div>
+    <div class="last-updated" id="lb-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
+  </div>
+
+  <!-- FULL FIELD VIEW -->
+
+  <div class="view" id="view-field">
+    <div class="section-title">All Players — Live Leaderboard</div>
+    <div id="field-list"></div>
+    <div class="last-updated" id="field-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
+  </div>
+
+  <!-- PRIZES VIEW — payout slots with current leaders -->
+
+  <div class="view" id="view-prizes">
+    <div class="section-title">Payout Positions — Current Leaders</div>
+    <div id="prizes-list"></div>
+    <div class="last-updated" id="prizes-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
+  </div>
+
+  <!-- PAYOUTS VIEW — simple payout table -->
+
+  <div class="view" id="view-payouts">
+    <div class="section-title">2026 Payout Structure</div>
+    <div class="payout-card" id="payout-list"></div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
+  </div>
+
+</div>
+
+<div class="refresh-bar">
+  <button class="refresh-btn" id="refresh-btn" onclick="fetchLiveScores()">
+    <span id="refresh-icon">↻</span> Refresh Now
+  </button>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+// =============================================================
+// TODO: FILL IN GROUP 2 DATA BELOW
+// Send your friend this checklist:
+//   1. Total pot ($)
+//   2. Payout % per place (1st, 2nd, 3rd... round lows, amateur)
+//   3. Each pick: player name, owner, price paid
+//   4. Any splits: player, primary owner + %, split owner + %, $ they paid
+//   5. Which team name to show by default on My Team tab
+// =============================================================
+
+const TOTAL_POT = 768600;
+
+// Augusta National par by hole 1-18 (same course, keep as-is)
+const AUGUSTA_PAR = [4,5,4,3,4,3,4,5,4, 4,4,3,5,4,5,3,4,4];
+
+const PAYOUTS = [
+  { place: '1st Place',       pct: 0.40 },
+  { place: '2nd Place',       pct: 0.18 },
+  { place: '3rd Place',       pct: 0.12 },
+  { place: '4th Place',       pct: 0.08 },
+  { place: '5th Place',       pct: 0.05 },
+  { place: '6th Place',       pct: 0.03 },
+  { place: '7th Place',       pct: 0.02 },
+  { place: '1st Round Low',   pct: 0.02 },
+  { place: '2nd Round Low',   pct: 0.02 },
+  { place: '3rd Round Low',   pct: 0.02 },
+  { place: '4th Round Low',   pct: 0.02 },
+  { place: 'High Round 1',    pct: 0.02 },
+  { place: 'High Round 2',    pct: 0.02 },
+];
+
+// TODO: Replace ALL_PICKS with actual auction results
+// Format for a standard pick:
+//   { id: 1, name: 'Player Name', owner: 'Owner Name', price: 1000 }
+// Format for an amateur:
+//   { id: 2, name: 'Player Name (a)', owner: 'Owner Name', price: 200 }
+// Format for a split pick (primary owner + co-owner):
+//   { id: 3, name: 'Player Name', owner: 'Primary Owner', price: 2000,
+//     splitOwner: 'Co-Owner Name', splitPct: 0.50, splitPaid: 1000 }
+//   (splitPct = co-owner's share, splitPaid = $ co-owner paid)
+const ALL_PICKS = [
+  // Pool A
+  { id:  1, name: 'Jose Maria Olazabal',  owner: 'Bowen',       price:  1500 },
+  { id:  2, name: 'Brandon Holtz (a)',     owner: 'Harvey',      price:  1900 },
+  { id:  3, name: 'Angel Cabrera',         owner: 'Bowen',       price:  1200 },
+  { id:  4, name: 'Aldrich Potgieter',     owner: 'Sims',        price:  2000 },
+  { id:  5, name: 'Dustin Johnson',        owner: 'Barton',      price:  1400 },
+  { id:  6, name: 'Sungjae Im',            owner: 'Sims',        price:  3800 },
+  { id:  7, name: 'Michael Kim',           owner: 'Schuhmacher', price:  2000 },
+  { id:  8, name: 'Johnny Keefer',         owner: 'Sims',        price:  1700 },
+  { id:  9, name: 'Brian Harman',          owner: 'Harvey',      price:  1900 },
+  { id: 10, name: 'Aaron Rai',             owner: 'Barton',      price:  1400 },
+  { id: 11, name: 'Carlos Ortiz',          owner: 'Sims',        price:  2400 },
+  { id: 12, name: 'Rasmus Hojgaard',       owner: 'Wynne',       price:  2900 },
+  { id: 13, name: 'Nick Taylor',           owner: 'Wynne',       price:  1800 },
+  { id: 14, name: 'Justin Thomas',         owner: 'McConn',      price:  6500 },
+  { id: 15, name: 'Harry Hall',            owner: 'Harvey',      price:  2800 },
+  { id: 16, name: 'Ben Griffin',           owner: 'Sims',        price:  3200 },
+  { id: 17, name: 'Nicolai Hojgaard',      owner: 'Rynd',        price:  9000 },
+  { id: 18, name: 'Sam Burns',             owner: 'Sims',        price:  4700 },
+  { id: 19, name: 'Jake Knapp',            owner: 'Harvey',      price: 10000 },
+  { id: 20, name: 'Hideki Matsuyama',      owner: 'Jimmy',       price: 18500 },
+  { id: 21, name: 'Russell Henley',        owner: 'Wynne',       price:  9500 },
+  { id: 22, name: 'Xander Schauffele',     owner: 'McConn',      price: 36000 },
+  // Pool B
+  { id: 23, name: 'Mateo Pulcini (a)',             owner: 'Wynne',       price:  1500 },
+  { id: 24, name: 'Mason Howell (a)',               owner: 'Barton',      price:  1500 },
+  { id: 25, name: 'Fred Couples',                   owner: 'Sims',        price:  1500 },
+  { id: 26, name: 'Davis Riley',                    owner: 'Sims',        price:  1500 },
+  { id: 27, name: 'Zach Johnson',                   owner: 'Wynne',       price:  1500 },
+  { id: 28, name: 'Andrew Novak',                   owner: 'Sims',        price:  1500 },
+  { id: 29, name: 'Rasmus Neergaard-Petersen',      owner: 'Sims',        price:  1500 },
+  { id: 30, name: 'Kristoffer Reitan',              owner: 'Sims',        price:  1500 },
+  { id: 31, name: 'Wyndham Clark',                  owner: 'Barton',      price:  2500 },
+  { id: 32, name: 'Nico Echavarria',                owner: 'Wynne',       price:  2000 },
+  { id: 33, name: 'Tyrrell Hatton',                 owner: 'Bowen',       price:  6000 },
+  { id: 34, name: 'Daniel Berger',                  owner: 'Harvey',      price:  4000 },
+  { id: 35, name: 'Keegan Bradley',                 owner: 'Barton',      price:  3000 },
+  { id: 36, name: 'Jason Day',                      owner: 'Selber',      price:  6500 },
+  { id: 37, name: 'J.J. Spaun',                     owner: 'Wynne',       price:  5000 },
+  { id: 38, name: 'Shane Lowry',                    owner: 'Sims',        price:  8000 },
+  { id: 39, name: 'Chris Gotterup',                 owner: 'Sims',        price:  8500 },
+  { id: 40, name: 'Maverick McNealy',               owner: 'Wynne',       price:  7500 },
+  { id: 41, name: 'Jacob Bridgeman',                owner: 'Wynne',       price:  6500 },
+  { id: 42, name: 'Collin Morikawa',                owner: 'Sims',        price: 12000 },
+  { id: 43, name: 'Robert MacIntyre',               owner: 'Barton',      price: 16000 },
+  { id: 44, name: 'Cameron Young',                  owner: 'Rynd',        price: 27000 },
+  { id: 45, name: 'Scottie Scheffler',              owner: 'Schuhmacher', price: 72000 },
+  // Pool C
+  { id: 46, name: 'Vijay Singh',           owner: 'Harvey',  price:  1500 },
+  { id: 47, name: 'Naoyuki Kataoka',       owner: 'Barton',  price:  2000 },
+  { id: 48, name: 'Ethan Fang (a)',        owner: 'Sims',    price:  1000 },
+  { id: 49, name: 'Brian Campbell',        owner: 'Harvey',  price:  1000 },
+  { id: 50, name: 'Charl Schwartzel',      owner: 'Jimmy',   price:  1000 },
+  { id: 51, name: 'Sami Valimaki',         owner: 'Barton',  price:  1000 },
+  { id: 52, name: 'Max Homa',              owner: 'Barton',  price:  5000 },
+  { id: 53, name: 'Tom McKibbin',          owner: 'Pitt',    price:  1000 },
+  { id: 54, name: 'Haotong Li',            owner: 'Jimmy',   price:  2500 },
+  { id: 55, name: 'Marco Penge',           owner: 'Bowen',   price:  4500 },
+  { id: 56, name: 'Matt McCarty',          owner: 'Wynne',   price:  1500 },
+  { id: 57, name: 'Casey Jarvis',          owner: 'Jimmy',   price:  2000 },
+  { id: 58, name: 'Sam Stevens',           owner: 'Kerns',   price:  2000 },
+  { id: 59, name: 'Corey Conners',         owner: 'McConn',  price:  7500 },
+  { id: 60, name: 'Justin Rose',           owner: 'Jimmy',   price: 14000 },
+  { id: 61, name: 'Jordan Spieth',         owner: 'Rynd',    price: 13000 },
+  { id: 62, name: 'Harris English',        owner: 'Selber',  price:  6000 },
+  { id: 63, name: 'Viktor Hovland',        owner: 'Pitt',    price:  8000 },
+  { id: 64, name: 'Patrick Cantlay',       owner: 'Jimmy',   price:  7000 },
+  { id: 65, name: 'Min Woo Lee',           owner: 'Wynne',   price: 16000 },
+  { id: 66, name: 'Bryson DeChambeau',     owner: 'McConn',  price: 44000 },
+  { id: 67, name: 'Tommy Fleetwood',       owner: 'Barton',  price: 25000 },
+  { id: 68, name: 'Jon Rahm',              owner: 'Bowen',   price: 57000 },
+  // Pool D
+  { id: 69, name: 'Mike Weir',                owner: 'Jimmy',   price:  2000 },
+  { id: 70, name: 'Fifa Laopakdee (a)',        owner: 'Harvey',  price:  2500 },
+  { id: 71, name: 'Jackson Herrington (a)',    owner: 'Barton',  price:  1500 },
+  { id: 72, name: 'Danny Willett',             owner: 'Kerns',   price:  2000 },
+  { id: 73, name: 'Bubba Watson',              owner: 'Selber',  price:  2000 },
+  { id: 74, name: 'Sergio Garcia',             owner: 'Bowen',   price:  2000 },
+  { id: 75, name: 'Michael Brennan',           owner: 'Wynne',   price:  1000 },
+  { id: 76, name: 'Brooks Koepka',             owner: 'Kerns',   price: 10000 },
+  { id: 77, name: 'Cameron Smith',             owner: 'Barton',  price:  7000 },
+  { id: 78, name: 'Max Greyserman',            owner: 'Sims',    price:  1500 },
+  { id: 79, name: 'Gary Woodland',             owner: 'Kerns',   price:  5000 },
+  { id: 80, name: 'Ryan Fox',                  owner: 'Pitt',    price:  2000 },
+  { id: 81, name: 'Patrick Reed',              owner: 'Selber',  price: 16000 },
+  { id: 82, name: 'Kurt Kitayama',             owner: 'Sims',    price:  5000 },
+  { id: 83, name: 'Ryan Gerard',               owner: 'Wynne',   price:  4000 },
+  { id: 84, name: 'Adam Scott',                owner: 'Wynne',   price:  6000 },
+  { id: 85, name: 'Sepp Straka',               owner: 'Selber',  price:  7000 },
+  { id: 86, name: 'Alex Noren',                owner: 'Harvey',  price:  4500 },
+  { id: 87, name: 'Akshay Bhatia',             owner: 'McConn',  price:  9500 },
+  { id: 88, name: 'Si Woo Kim',                owner: 'Sims',    price: 14000 },
+  { id: 89, name: 'Ludvig Aberg',              owner: 'Rynd',    price: 37000 },
+  { id: 90, name: 'Matt Fitzpatrick',          owner: 'Harvey',  price: 36000 },
+  { id: 91, name: 'Rory McIlroy',              owner: 'Jimmy',   price: 43000 },
+];
+
+// Team spend — computed accurately from pick data (accounts for known splits)
+const TEAM_SPEND = {};
+ALL_PICKS.forEach(p => {
+  if (p.price === 0) return;
+  const ownerPays = p.price - (p.splitPaid || 0);
+  TEAM_SPEND[p.owner] = (TEAM_SPEND[p.owner] || 0) + ownerPays;
+  if (p.splitOwner && p.splitPaid) {
+    TEAM_SPEND[p.splitOwner] = (TEAM_SPEND[p.splitOwner] || 0) + p.splitPaid;
+  }
+});
+
+// All unique team names (ordered by spend desc for pill display)
+const ALL_TEAMS = Object.keys(TEAM_SPEND).sort((a, b) => TEAM_SPEND[b] - TEAM_SPEND[a]);
+
+// ============================================================
+// STATE
+// ============================================================
+let liveScores = {};
+let lastFetch = null;
+let isFetching = false;
+let selectedTeam = 'Rynd';
+
+// ============================================================
+// HELPERS
+// ============================================================
+function fmtMoney(n) {
+  if (!n && n !== 0) return '—';
+  return '$' + Math.round(n).toLocaleString();
+}
+
+function shortName(fullName) {
+  return fullName.split(' ')[0]; // First name only
+}
+
+function fmtMultiple(proj, invested) {
+  if (!proj || !invested) return { text: '—', cls: 'multiple-neutral' };
+  const m = proj / invested;
+  const txt = m.toFixed(2) + 'x';
+  const cls = m >= 1 ? 'multiple-pos' : 'multiple-neg';
+  return { text: txt, cls };
+}
+
+// Compute projected winnings for any team
+function computeTeamStats(teamName) {
+  const invested = TEAM_SPEND[teamName] || 0;
+  let proj = 0;
+  ALL_PICKS.forEach(pick => {
+    const isOwner = pick.owner === teamName;
+    const isSplit = pick.splitOwner === teamName;
+    if (!isOwner && !isSplit) return;
+    const score = getScore(pick.name);
+    const pos = score ? score.position : null;
+    let ownership = 1.0;
+    if (pick.splitPct) {
+      ownership = isOwner ? (1 - pick.splitPct) : pick.splitPct;
+    }
+    proj += projectedPayout(pos, 87) * ownership;
+  });
+  return { invested, proj };
+}
+
+function scoreColor(score) {
+  if (!score && score !== 0) return 'score-even';
+  if (score < 0) return 'score-under';
+  if (score > 0) return 'score-over';
+  return 'score-even';
+}
+
+function fmtScore(score) {
+  if (score === null || score === undefined) return '—';
+  if (score === 0) return 'E';
+  if (score > 0) return '+' + score;
+  return String(score);
+}
+
+function canonicalName(name) {
+  // Strip half indicators for Scottie
+  return name.replace(' (1/2)', '').replace(' (2/2)', '').trim();
+}
+
+// Map pick names to Masters API search names
+function searchName(name) {
+  // Strip amateur tag and display suffixes before lookup
+  const c = canonicalName(name).replace(/\s*\(a\)\s*$/i, '').trim();
+  const map = {
+    'Nicolai Højgaard': 'Nicolai Hojgaard',
+    'Ludvig Åberg': 'Ludvig Aberg',
+    'Rasmus Højgaard': 'Rasmus Hojgaard',
+    'Sami Välimäki': 'Sami Valimaki',
+    'José María Olazábal': 'Jose Maria Olazabal',
+  };
+  return map[c] || c;
+}
+
+// Get projected payout based on finish position
+function projectedPayout(position, totalPlayers) {
+  if (!position || position > totalPlayers) return 0;
+  const payoutMap = {
+    1: PAYOUTS[0].pct,
+    2: PAYOUTS[1].pct,
+    3: PAYOUTS[2].pct,
+    4: PAYOUTS[3].pct,
+    5: PAYOUTS[4].pct,
+    6: PAYOUTS[5].pct,
+    7: PAYOUTS[6].pct,
+  };
+  return (payoutMap[position] || 0) * TOTAL_POT;
+}
+
+// ============================================================
+// AUTO-REFRESH — every 3 minutes
+// ============================================================
+const AUTO_REFRESH_MS = 3 * 60 * 1000;
+let autoRefreshTimer = null;
+let countdownTimer = null;
+let nextRefreshAt = null;
+
+function startAutoRefresh() {
+  clearInterval(autoRefreshTimer);
+  clearInterval(countdownTimer);
+  nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
+  autoRefreshTimer = setInterval(fetchLiveScores, AUTO_REFRESH_MS);
+  countdownTimer = setInterval(updateCountdown, 15000);
+}
+
+function updateCountdown() {
+  if (!nextRefreshAt || isFetching || !lastFetch) return;
+  const remaining = Math.max(0, Math.round((nextRefreshAt - Date.now()) / 1000));
+  const mins = Math.floor(remaining / 60);
+  const label = mins > 0 ? `next in ${mins}m` : `next in <1m`;
+  const msg = `Updated ${lastFetch.toLocaleTimeString()} · ${label}`;
+  ['team-updated','lb-updated','field-updated'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  });
+}
+
+function setStatusMsg(msg) {
+  ['team-updated','lb-updated','field-updated'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = msg;
+  });
+}
+
+// ============================================================
+// LIVE SCORES — ESPN Golf Scoreboard API (free, no auth, CORS-enabled)
+// ============================================================
+async function fetchLiveScores() {
+  if (isFetching) return;
+  isFetching = true;
+  nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
+
+  const btn = document.getElementById('refresh-btn');
+  const icon = document.getElementById('refresh-icon');
+  btn.classList.add('loading');
+  icon.innerHTML = '<span class="spin">↻</span>';
+  setStatusMsg('Fetching live scores…');
+
+  try {
+    const resp = await fetch(
+      'https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard',
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if (!resp.ok) throw new Error(`ESPN HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    // Find Masters event, fall back to first event
+    const event = (data.events || []).find(e =>
+      (e.name || '').toLowerCase().includes('master') ||
+      (e.name || '').toLowerCase().includes('augusta')
+    ) || (data.events || [])[0];
+
+    if (!event) throw new Error(`No golf event found. Events: ${(data.events||[]).map(e=>e.name).join(', ')}`);
+
+    const competitors = (event.competitions || [{}])[0].competitors || [];
+    if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
+
+
+    // Pre-count position occurrences across ALL competitors to detect ties
+    const positionCounts = {};
+    competitors.forEach(comp => {
+      const pd = comp.status?.position?.displayName || comp.position?.displayName || '';
+      const p = parseInt(pd.replace(/^T/, ''));
+      if (p && p < 999) positionCounts[p] = (positionCounts[p] || 0) + 1;
+    });
+
+    const newScores = {};
+    competitors.forEach(comp => {
+      const name = comp.athlete?.displayName;
+      if (!name) return;
+
+      // Score to par — comp.score is a direct string like "-4", "E", "+2"
+      const toParStr = (typeof comp.score === 'string' ? comp.score : comp.score?.displayValue) || 'E';
+      let score = 0;
+      if (toParStr && toParStr !== 'E' && toParStr !== '--') {
+        score = parseInt(toParStr.replace('+', '')) || 0;
+      }
+
+      // Position — try known ESPN locations
+      const statsArr = Array.isArray(comp.statistics) ? comp.statistics : [];
+      const stats = Object.fromEntries(statsArr.map(s => [s.name, s.displayValue]));
+      const posDisplay = comp.status?.position?.displayName
+        || comp.position?.displayName
+        || stats.position || stats.rank || '';
+      const realPos = parseInt(posDisplay.replace(/^T/, ''));
+      // For sorting: use real position, fall back to comp.order so list stays ordered
+      const position = realPos || comp.order || 999;
+      // For display: only show if we have a real leaderboard position (not just sort order)
+      const posStr = realPos
+        ? ((positionCounts[realPos] || 1) > 1 ? 'T' + realPos : String(realPos))
+        : '';
+
+      // Thru — try shortDetail first, fall back to linescores count
+      const detail = comp.status?.type?.shortDetail || '';
+      let thru = '-';
+      if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
+      else if (detail === 'CUT') thru = 'CUT';
+      else if (/^\d+$/.test(detail)) thru = detail;
+      else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
+      const statusState = comp.status?.type?.state || '';
+      if (thru === '-' && comp.linescores && statusState !== 'pre') {
+        const holes = comp.linescores.length;
+        if (holes >= 18) thru = 'F';
+        else if (holes > 0) thru = String(holes);
+      }
+
+      // Today's round score — use total score (R1: they're identical; revisit for R2+)
+      const todayScore = statusState !== 'pre' ? score : null;
+
+      // Status
+      const sName = comp.status?.type?.name || '';
+      const status = (sName.includes('CUT') || sName.includes('MISSED')) ? 'cut'
+                   : (sName.includes('WD') || sName.includes('WITHDRAWN')) ? 'wd'
+                   : 'active';
+
+      newScores[name] = { name, position, posStr, score, todayScore, thru, status };
+    });
+
+    // Re-compute posStr from score groupings (ESPN gives sequential numbers, not tied positions)
+    const startedPlayers = Object.values(newScores).filter(p => p.thru !== '-' && p.status === 'active');
+    const scoreGroups = {};
+    startedPlayers.forEach(p => { (scoreGroups[p.score] = scoreGroups[p.score] || []).push(p); });
+    let rank = 1;
+    Object.keys(scoreGroups).map(Number).sort((a, b) => a - b).forEach(s => {
+      const group = scoreGroups[s];
+      const str = (group.length > 1 ? 'T' : '') + rank;
+      group.forEach(p => { p.posStr = str; });
+      rank += group.length;
+    });
+
+    if (Object.keys(newScores).length === 0) throw new Error(`Parsed 0 players from: ${event.name}. Stats keys: ${JSON.stringify(Object.fromEntries((competitors[0]?.statistics||[]).map(s=>[s.name,s.displayValue])))}`);
+
+    liveScores = newScores;
+    lastFetch = new Date();
+    renderAll();
+    updateCountdown();
+
+  } catch (err) {
+    console.error('fetchLiveScores:', err);
+    setStatusMsg(`⚠ ${err.message} — retrying in 3 min`);
+  }
+
+  isFetching = false;
+  btn.classList.remove('loading');
+  icon.innerHTML = '↻';
+}
+
+// ============================================================
+// GET SCORE FOR PICK
+// ============================================================
+function normalizeName(s) {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
+function getScore(pickName) {
+  const search = searchName(pickName);
+  // Try exact match first
+  if (liveScores[search]) return liveScores[search];
+  // Fuzzy: normalized last name match (handles diacritics like ø → o)
+  const lastName = normalizeName(search.split(' ').pop());
+  for (const key of Object.keys(liveScores)) {
+    if (normalizeName(key.split(' ').pop()) === lastName) return liveScores[key];
+  }
+  return null;
+}
+
+// ============================================================
+// RENDER TEAM SELECTOR PILLS
+// ============================================================
+function renderTeamPills() {
+  const container = document.getElementById('team-pills');
+  if (!container) return;
+  container.innerHTML = ALL_TEAMS.map(team => `
+    <button class="team-pill ${team === selectedTeam ? 'selected' : ''}"
+      onclick="selectTeam('${team}')">${shortName(team)}</button>
+  `).join('');
+}
+
+function selectTeam(teamName) {
+  selectedTeam = teamName;
+  renderTeamPills();
+  renderMyTeam();
+}
+
+// ============================================================
+// RENDER MY TEAM
+// ============================================================
+function renderMyTeam() {
+  const team = selectedTeam;
+  const myPicks = ALL_PICKS.filter(p => p.owner === team || p.splitOwner === team);
+  const list = document.getElementById('my-players-list');
+
+  const sorted = myPicks.slice().sort((a, b) => {
+    const sa = getScore(a.name), sb = getScore(b.name);
+    return (sa ? sa.position || 999 : 999) - (sb ? sb.position || 999 : 999);
+  });
+
+  const { invested, proj } = computeTeamStats(team);
+  const mult = fmtMultiple(proj, invested);
+
+  let html = '';
+  sorted.forEach((pick, i) => {
+    const isOwner = pick.owner === team;
+    const isSplit = pick.splitOwner === team;
+    const ownership = pick.splitPct ? (isOwner ? (1 - pick.splitPct) : pick.splitPct) : 1.0;
+    const myPaid = isSplit ? (pick.splitPaid || 0) : (pick.price - (pick.splitPaid || 0));
+    const score = getScore(pick.name);
+    const pos = score ? score.position : null;
+    const scoreVal = score ? score.score : null;
+    const thru = score ? score.thru : null;
+    const status = score ? score.status : 'active';
+
+    const basePayout = projectedPayout(pos, 87);
+    const myPayout = basePayout * ownership;
+
+    const posClass = pos === 1 ? 'leader' : (status === 'cut' ? 'missed-cut' : 'made-cut');
+    const badgeClass = pos <= 3 ? 'top3' : (pos <= 10 ? 'top10' : (status === 'cut' ? 'missed' : ''));
+    const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
+    const splitLabel = pick.splitPct ? `<span class="split-tag">${Math.round(ownership * 100)}% share</span>` : '';
+
+    html += `
+      <div class="player-card ${posClass}" style="animation-delay:${i * 0.04}s">
+        <div class="pos-badge ${badgeClass}">${posDisplay}</div>
+        <div class="player-info">
+          <div class="player-name">${canonicalName(pick.name)}</div>
+          <div class="player-meta">
+            <span class="player-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}${thru && thru !== '-' ? (thru === 'F' ? ' · F' : ' · Thru ' + thru) : ''}</span>
+            ${splitLabel}
+          </div>
+        </div>
+        <div class="player-right">
+          <div class="proj-win ${myPayout === 0 ? 'zero' : ''}">${myPayout > 0 ? fmtMoney(myPayout) : '—'}</div>
+          <span class="cost-label">paid ${fmtMoney(myPaid)}</span>
+        </div>
+      </div>`;
+  });
+
+  // Scottie tracker — only show for Austin
+  if (team === 'Austin Mai') {
+    const scottieScore = liveScores['Scottie Scheffler'];
+    const sPos = scottieScore ? scottieScore.position : null;
+    const sScore = scottieScore ? scottieScore.score : null;
+    const sThru = scottieScore ? scottieScore.thru : null;
+    html += `
+      <div class="section-title">Northwood Pool (Track Only)</div>
+      <div class="player-card leader" style="opacity:0.85">
+        <div class="pos-badge top3">${sPos || '—'}</div>
+        <div class="player-info">
+          <div class="player-name">Scottie Scheffler</div>
+          <div class="player-meta">
+            <span class="player-score ${scoreColor(sScore)}">${fmtScore(sScore)}${sThru && sThru !== '-' ? (sThru === 'F' ? ' · F' : ' · Thru ' + sThru) : ''}</span>
+            <span class="split-tag">Northwood</span>
+          </div>
+        </div>
+        <div class="player-right">
+          <div class="proj-win zero">Watch only</div>
+          <span class="cost-label">paid $6,300</span>
+        </div>
+      </div>`;
+  }
+
+  list.innerHTML = html;
+
+  // Update header stats
+  document.getElementById('team-name-display').textContent = `Team ${shortName(team)}`;
+  document.getElementById('team-invested').textContent = fmtMoney(invested);
+  document.getElementById('team-proj').textContent = proj > 0 ? fmtMoney(proj) : '—';
+  const multEl = document.getElementById('team-multiple');
+  multEl.textContent = mult.text;
+  multEl.className = `stat-value ${mult.cls}`;
+
+  if (lastFetch) document.getElementById('team-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
+}
+
+// ============================================================
+// RENDER LEADERBOARD (all teams)
+// ============================================================
+function renderLeaderboard() {
+  // Initialize every team from TEAM_SPEND so all appear even with 0 proj
+  const teams = {};
+  Object.keys(TEAM_SPEND).forEach(t => {
+    teams[t] = { spent: TEAM_SPEND[t] || 0, proj: 0 };
+  });
+
+  ALL_PICKS.forEach(pick => {
+    if (pick.inField && pick.price === 0) return;
+    const score = getScore(pick.name);
+    const pos = score ? score.position : null;
+    const fullPayout = projectedPayout(pos, 87);
+
+    // Credit primary owner their share
+    const ownerPct = pick.splitPct ? (1 - pick.splitPct) : 1.0;
+    if (teams[pick.owner]) teams[pick.owner].proj += fullPayout * ownerPct;
+
+    // Credit split owner their share
+    if (pick.splitOwner && pick.splitPct) {
+      if (!teams[pick.splitOwner]) teams[pick.splitOwner] = { spent: TEAM_SPEND[pick.splitOwner] || 0, proj: 0 };
+      teams[pick.splitOwner].proj += fullPayout * pick.splitPct;
+    }
+  });
+
+  // Sort by projected winnings
+  const sorted = Object.entries(teams).sort((a, b) => b[1].proj - a[1].proj);
+
+  let html = '';
+  sorted.forEach(([team, data], i) => {
+    const rank = i + 1;
+    const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+    const isMe = team === selectedTeam;
+    const hasLive = liveScores && Object.keys(liveScores).length > 0;
+    const projDisplay = data.proj > 0 ? fmtMoney(data.proj) : hasLive ? '$0' : '—';
+    const projNeg = hasLive && data.proj > 0 && data.proj < data.spent;
+    const mult = fmtMultiple(data.proj, data.spent);
+    const shortName = team.replace(' Hickok','').replace(' Knowlton','').replace(' Turner','').replace(' Turtletaub','').replace(' Mai','').replace(' Francois','').replace(' Sala','').replace(' Clayton','').replace(' Fraker','').replace(' Nixon','').replace(' Braver','');
+
+    html += `
+      <div class="lb-row ${isMe ? 'highlight' : ''}">
+        <div class="lb-rank ${rankClass}">${rank}</div>
+        <div class="lb-team">${shortName}${isMe ? ' ⭐' : ''}</div>
+        <div class="lb-spent">${fmtMoney(data.spent)}</div>
+        <div class="lb-proj ${projNeg ? 'score-over' : ''}">${projDisplay}</div>
+        <div class="${mult.cls}" style="text-align:right;font-size:11px">${hasLive ? mult.text : '—'}</div>
+      </div>`;
+  });
+
+  document.getElementById('lb-rows').innerHTML = html;
+  if (lastFetch) document.getElementById('lb-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
+}
+
+// ============================================================
+// RENDER PRIZES — each payout slot with current leader
+// ============================================================
+function renderPrizes() {
+  const hasScores = Object.keys(liveScores).length > 0;
+
+  // Build position → player map from liveScores
+  const posMap = {}; // position int → pick entry
+  ALL_PICKS.forEach(pick => {
+    if (canonicalName(pick.name) === 'Field' || pick.inField) return;
+    const score = getScore(pick.name);
+    if (!score || !score.position || score.position > 200) return;
+    const pos = score.position;
+    if (!posMap[pos] || pick.price > (posMap[pos].pick.price || 0)) {
+      posMap[pos] = { pick, score };
+    }
+  });
+
+  // For each main payout position (1st–8th), show current leader
+  const mainPayouts = PAYOUTS.slice(0, 8); // 1st–8th
+  const bonusPayouts = PAYOUTS.slice(8);   // round lows, highs, amateur
+
+  let html = '';
+
+  mainPayouts.forEach((payout, i) => {
+    const position = i + 1;
+    const payoutAmt = Math.round(payout.pct * TOTAL_POT);
+    const entry = posMap[position];
+    const isTop = i < 3;
+
+    let playerName = '—', ownerName = '—', invested = 0, multiple = { text: '—', cls: 'multiple-neutral' };
+    let scoreDisplay = '', ownership = 1.0;
+
+    if (entry && hasScores) {
+      const pick = entry.pick;
+      const score = entry.score;
+      playerName = canonicalName(pick.name);
+      ownerName = shortName(pick.owner);
+
+      // Determine ownership for this slot
+      if (pick.splitPct) {
+        // Both owners share — show primary owner
+        ownerName = shortName(pick.owner);
+        ownership = 1 - pick.splitPct;
+        // If split, note it
+        ownerName += ` (${Math.round(ownership*100)}%)`;
+      }
+      invested = TEAM_SPEND[pick.owner] || 0;
+      const actualPayout = payoutAmt * ownership;
+      multiple = fmtMultiple(actualPayout, invested);
+      const s = score.score;
+      scoreDisplay = s !== null && s !== undefined ? fmtScore(s) : '';
+    }
+
+    const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+
+    html += `
+      <div class="prize-card ${isTop ? 'top-payout' : ''}">
+        <div class="prize-top-row">
+          <div>
+            <span class="prize-place ${isTop ? 'gold-text' : ''}">${rankIcon} ${payout.place}</span>
+            <span class="prize-pct">${(payout.pct * 100).toFixed(1)}%</span>
+          </div>
+          <div class="prize-amount">${fmtMoney(payoutAmt)}</div>
+        </div>
+        <div class="prize-bottom-row">
+          <div class="prize-cell">
+            <div class="prize-cell-label">Current Leader</div>
+            <div class="prize-cell-value ${hasScores && playerName !== '—' ? 'highlight' : 'dim'}">${playerName}${scoreDisplay ? ' ' + scoreDisplay : ''}</div>
+          </div>
+          <div class="prize-cell">
+            <div class="prize-cell-label">Team</div>
+            <div class="prize-cell-value">${ownerName !== '—' ? ownerName : hasScores ? '—' : 'No scores'}</div>
+          </div>
+          <div class="prize-cell">
+            <div class="prize-cell-label">Team Invested</div>
+            <div class="prize-cell-value">${invested > 0 ? fmtMoney(invested) : '—'}</div>
+          </div>
+          <div class="prize-cell">
+            <div class="prize-cell-label">Multiple</div>
+            <div class="prize-cell-value ${multiple.cls}">${multiple.text}</div>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  // Compute Round 1 Low leader (lowest score among all non-field picks)
+  let r1Low = null, r1LowScore = Infinity;
+  ALL_PICKS.forEach(pick => {
+    if (pick.inField || canonicalName(pick.name) === 'Field') return;
+    const s = getScore(pick.name);
+    if (!s || s.status === 'cut' || s.status === 'wd') return;
+    if (s.score < r1LowScore) { r1LowScore = s.score; r1Low = { pick, score: s }; }
+  });
+
+  // Compute Low Amateur leader
+  const amateurPicks = ALL_PICKS.filter(p =>
+    p.name.includes('(a)') || p.name === 'Casey Jarvis'
+  );
+  let lowAm = null, lowAmScore = Infinity;
+  amateurPicks.forEach(pick => {
+    const s = getScore(pick.name);
+    if (!s || s.status === 'cut' || s.status === 'wd') return;
+    if (s.score < lowAmScore) { lowAmScore = s.score; lowAm = { pick, score: s }; }
+  });
+
+  // Bonus payouts (round prizes, amateur) — simpler cards
+  html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
+  bonusPayouts.forEach((payout, bi) => {
+    const payoutAmt = Math.round(payout.pct * TOTAL_POT);
+    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '';
+
+    if (bi === 0 && hasScores && r1Low) {
+      // 1st Round Low — live
+      bonusPlayer = canonicalName(r1Low.pick.name);
+      bonusOwner = shortName(r1Low.pick.owner);
+      bonusScore = ' ' + fmtScore(r1Low.score.score);
+    } else if (payout.place === 'Low Amateur' && hasScores && lowAm) {
+      bonusPlayer = canonicalName(lowAm.pick.name);
+      bonusOwner = shortName(lowAm.pick.owner);
+      bonusScore = ' ' + fmtScore(lowAm.score.score);
+    }
+
+    const isLive = (bi === 0 || payout.place === 'Low Amateur') && hasScores;
+    html += `
+      <div class="prize-card">
+        <div class="prize-top-row">
+          <div>
+            <span class="prize-place">${payout.place}</span>
+            <span class="prize-pct">${(payout.pct * 100).toFixed(1)}%</span>
+          </div>
+          <div class="prize-amount">${fmtMoney(payoutAmt)}</div>
+        </div>
+        <div class="prize-bottom-row">
+          <div class="prize-cell" style="grid-column:span 2">
+            <div class="prize-cell-label">${isLive ? 'Current Leader' : 'Determined per round'}</div>
+            <div class="prize-cell-value ${isLive && bonusPlayer !== '—' ? 'highlight' : 'dim'}">${isLive && bonusPlayer !== '—' ? bonusPlayer + bonusScore + ' · ' + bonusOwner : 'Updates during play'}</div>
+          </div>
+        </div>
+      </div>`;
+  });
+
+  document.getElementById('prizes-list').innerHTML = html;
+  if (lastFetch) document.getElementById('prizes-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
+}
+function renderField() {
+  // Deduplicate by canonical player name, merging owners for split picks
+  const playerMap = {};
+  ALL_PICKS.filter(p => !p.inField && canonicalName(p.name) !== 'Field').forEach(p => {
+    const key = canonicalName(p.name);
+    if (!playerMap[key]) {
+      playerMap[key] = { ...p, _canonName: key, _owners: [p.owner], _score: getScore(p.name) };
+    } else {
+      if (!playerMap[key]._owners.includes(p.owner)) playerMap[key]._owners.push(p.owner);
+    }
+  });
+
+  const sorted = Object.values(playerMap).sort((a, b) => {
+    const pa = a._score ? (a._score.position || 999) : 999;
+    const pb = b._score ? (b._score.position || 999) : 999;
+    return pa - pb;
+  });
+
+  let html = `
+    <div class="field-header">
+      <div style="text-align:center">POS</div>
+      <div>PLAYER</div>
+      <div style="text-align:center">TOT</div>
+      <div style="text-align:center">THRU</div>
+      <div style="text-align:center">TODAY</div>
+      <div style="text-align:right">OWNER</div>
+    </div>`;
+  sorted.forEach((pick, i) => {
+    const score = pick._score;
+    const scoreVal = score ? score.score : null;
+    const todayScore = score ? score.todayScore : null;
+    const thru = score ? score.thru : null;
+    const status = score ? score.status : 'active';
+    const isMe = pick._owners.includes(selectedTeam);
+    const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || '—');
+    const thruDisplay = thru && thru !== '-' ? thru : '—';
+    const todayDisplay = todayScore !== null ? fmtScore(todayScore) : '—';
+    const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
+    html += `
+      <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
+        <div class="field-pos">${posDisplay}</div>
+        <div class="field-name">${pick._canonName}</div>
+        <div class="field-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}</div>
+        <div class="field-score" style="color:var(--text-dim);font-weight:400">${thruDisplay}</div>
+        <div class="field-score ${scoreColor(todayScore)}">${todayDisplay}</div>
+        <div class="field-owner ${isMe ? 'mine' : ''}">${ownerDisplay}</div>
+      </div>`;
+  });
+
+  document.getElementById('field-list').innerHTML = html;
+  if (lastFetch) document.getElementById('field-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
+}
+
+// ============================================================
+// RENDER PAYOUTS
+// ============================================================
+function renderPayouts() {
+  let html = '';
+  PAYOUTS.forEach((p, i) => {
+    const amt = Math.round(p.pct * TOTAL_POT);
+    const isTop = i < 3;
+    html += `
+      <div class="payout-row ${isTop ? 'top' : ''}">
+        <div class="payout-place">${p.place}</div>
+        <div class="payout-pct">${(p.pct * 100).toFixed(1)}%</div>
+        <div class="payout-amt">${fmtMoney(amt)}</div>
+      </div>`;
+  });
+  document.getElementById('payout-list').innerHTML = html;
+}
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  renderMyTeam();
+  renderLeaderboard();
+  renderField();
+  renderPrizes();
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('view-' + tab).classList.add('active');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderPayouts();
+renderTeamPills();
+renderMyTeam();
+renderLeaderboard();
+renderField();
+renderPrizes();
+
+// Fetch immediately on load, then auto-refresh every 3 min
+fetchLiveScores().then(() => startAutoRefresh());
+</script>
+
+</body>
+</html>
+
