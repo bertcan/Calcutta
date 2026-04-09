@@ -733,7 +733,7 @@ text-overflow: ellipsis;
       </div>
     </div>
     <div class="pot-badge">
-      <span class="pot-amount" id="pot-display">$97,700</span>
+      <span class="pot-amount" id="pot-display">$768,600</span>
       <span class="pot-label">Total Pot</span>
     </div>
   </div>
@@ -850,27 +850,25 @@ text-overflow: ellipsis;
 //   5. Which team name to show by default on My Team tab
 // =============================================================
 
-// TODO: Replace with actual total pot
-const TOTAL_POT = 0;
+const TOTAL_POT = 768600;
 
 // Augusta National par by hole 1-18 (same course, keep as-is)
 const AUGUSTA_PAR = [4,5,4,3,4,3,4,5,4, 4,4,3,5,4,5,3,4,4];
 
-// TODO: Replace with actual payout percentages (must sum to 1.0)
 const PAYOUTS = [
-  { place: '1st Place',       pct: 0.00 },
-  { place: '2nd Place',       pct: 0.00 },
-  { place: '3rd Place',       pct: 0.00 },
-  { place: '4th Place',       pct: 0.00 },
-  { place: '5th Place',       pct: 0.00 },
-  { place: '6th Place',       pct: 0.00 },
-  { place: '7th Place',       pct: 0.00 },
-  { place: '8th Place',       pct: 0.00 },
-  { place: '1st Round Low',   pct: 0.00 },
-  { place: '2nd Round Low',   pct: 0.00 },
-  { place: '3rd Round Low',   pct: 0.00 },
-  { place: '4th Round Low',   pct: 0.00 },
-  { place: 'Low Amateur',     pct: 0.00 },
+  { place: '1st Place',       pct: 0.40 },
+  { place: '2nd Place',       pct: 0.18 },
+  { place: '3rd Place',       pct: 0.12 },
+  { place: '4th Place',       pct: 0.08 },
+  { place: '5th Place',       pct: 0.05 },
+  { place: '6th Place',       pct: 0.03 },
+  { place: '7th Place',       pct: 0.02 },
+  { place: '1st Round Low',   pct: 0.02 },
+  { place: '2nd Round Low',   pct: 0.02 },
+  { place: '3rd Round Low',   pct: 0.02 },
+  { place: '4th Round Low',   pct: 0.02 },
+  { place: 'High Round 1',    pct: 0.02 },
+  { place: 'High Round 2',    pct: 0.02 },
 ];
 
 // TODO: Replace ALL_PICKS with actual auction results
@@ -992,7 +990,6 @@ function projectedPayout(position, totalPlayers) {
     5: PAYOUTS[4].pct,
     6: PAYOUTS[5].pct,
     7: PAYOUTS[6].pct,
-    8: PAYOUTS[7].pct,
   };
   return (payoutMap[position] || 0) * TOTAL_POT;
 }
