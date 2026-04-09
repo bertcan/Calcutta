@@ -1112,26 +1112,24 @@ async function fetchLiveScores() {
     const competitors = (event.competitions || [{}])[0].competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
 
-    // Debug: log first competitor structure to console
-    console.log('ESPN event:', event.name);
-    console.log('ESPN first competitor:', JSON.stringify(competitors[0], null, 2));
-
     const newScores = {};
     competitors.forEach(comp => {
       const name = comp.athlete?.displayName;
       if (!name) return;
 
-      // Score to par — ESPN uses 'scoreToPar' or 'toPar'
+      // Score to par — try all known ESPN field names
       const stats = Object.fromEntries((comp.statistics || []).map(s => [s.name, s.displayValue]));
-      const toParStr = stats.scoreToPar || stats.toPar || 'E';
+      const toParStr = stats.scoreToPar || stats.toPar || stats.score || 'E';
       let score = 0;
       if (toParStr && toParStr !== 'E' && toParStr !== '--') {
         score = parseInt(toParStr.replace('+', '')) || 0;
       }
 
-      // Position — prefer status.position, fall back to rank stat
-      const posDisplay = comp.status?.position?.displayName || stats.position || stats.rank || '';
-      let position = parseInt(posDisplay.replace(/^T/, '')) || 999;
+      // Position — try all known ESPN locations
+      const posDisplay = comp.status?.position?.displayName
+        || comp.status?.type?.shortDetail
+        || stats.position || stats.rank || '';
+      let position = parseInt(posDisplay.replace(/^T/, '').replace(/[^0-9-]/g, '')) || 999;
 
       // Thru
       const detail = comp.status?.type?.shortDetail || '-';
@@ -1150,7 +1148,7 @@ async function fetchLiveScores() {
       newScores[name] = { name, position, score, thru, status };
     });
 
-    if (Object.keys(newScores).length === 0) throw new Error('Parsed 0 players from ESPN data');
+    if (Object.keys(newScores).length === 0) throw new Error(`Parsed 0 players from: ${event.name}. Stats keys: ${JSON.stringify(Object.fromEntries((competitors[0]?.statistics||[]).map(s=>[s.name,s.displayValue])))}`);
 
     liveScores = newScores;
     lastFetch = new Date();
