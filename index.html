@@ -1021,7 +1021,7 @@ function fmtMultiple(proj, invested) {
 
 // Compute projected winnings for any team
 function computeTeamStats(teamName) {
-  const invested = TEAM_SPEND[teamName] || 0;
+  let invested = TEAM_SPEND[teamName] || 0;
   let proj = 0;
   ALL_PICKS.forEach(pick => {
     const isOwner = pick.owner === teamName;
