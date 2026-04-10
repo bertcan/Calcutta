@@ -1194,6 +1194,7 @@ async function fetchLiveScores() {
       else if (detail === 'CUT') thru = 'CUT';
       else if (/^\d+$/.test(detail)) thru = detail;
       else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
+      else if (/\d{1,2}:\d{2}\s*(AM|PM)/i.test(detail)) thru = detail.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)[0];
 
       // Today's round score — use total score (R1: they're identical; revisit for R2+)
       const todayScore = statusState !== 'pre' ? score : null;
