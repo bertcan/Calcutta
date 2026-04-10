@@ -969,6 +969,14 @@ const ALL_PICKS = [
 // Scottie tracked separately (Northwood pool)
 const SCOTTIE_TRACK = { name: 'Scottie Scheffler', pool: 'Northwood', price: 6300, note: 'Separate pool — track only' };
 
+// Northwood Calcutta payout structure
+const NORTHWOOD_POT = 84950;
+const NORTHWOOD_PAYOUTS = { 1: 0.30, 2: 0.20, 3: 0.10, 4: 0.08, 5: 0.06, 6: 0.04, 7: 0.02 };
+function northwoodProjPayout(position) {
+  if (!position) return 0;
+  return (NORTHWOOD_PAYOUTS[position] || 0) * NORTHWOOD_POT;
+}
+
 // Team spend — computed accurately from pick data (accounts for known splits)
 const TEAM_SPEND = {};
 ALL_PICKS.forEach(p => {
@@ -1027,6 +1035,13 @@ function computeTeamStats(teamName) {
     }
     proj += projectedPayout(pos, 87) * ownership;
   });
+  // Add Northwood Scottie pick for Austin
+  if (teamName === 'Austin Mai') {
+    const sScore = getScore(SCOTTIE_TRACK.name);
+    const sPos = sScore ? sScore.position : null;
+    invested += SCOTTIE_TRACK.price;
+    proj += northwoodProjPayout(sPos);
+  }
   return { invested, proj };
 }
 
@@ -1368,23 +1383,26 @@ function renderMyTeam() {
 
   // Scottie tracker — only show for Austin
   if (team === 'Austin Mai') {
-    const scottieScore = liveScores['Scottie Scheffler'];
+    const scottieScore = getScore(SCOTTIE_TRACK.name);
     const sPos = scottieScore ? scottieScore.position : null;
-    const sScore = scottieScore ? scottieScore.score : null;
+    const sScoreVal = scottieScore ? scottieScore.score : null;
     const sThru = scottieScore ? scottieScore.thru : null;
+    const sPosStr = scottieScore ? (scottieScore.posStr || (sPos ? String(sPos) : '—')) : '—';
+    const sBadge = sPos <= 3 ? 'top3' : (sPos <= 10 ? 'top10' : '');
+    const sProj = northwoodProjPayout(sPos);
     html += `
-      <div class="section-title">Northwood Pool (Track Only)</div>
-      <div class="player-card leader" style="opacity:0.85">
-        <div class="pos-badge top3">${sPos || '—'}</div>
+      <div class="section-title">Northwood Pool — $${NORTHWOOD_POT.toLocaleString()} pot</div>
+      <div class="player-card ${sPos === 1 ? 'leader' : 'made-cut'}" style="opacity:0.9">
+        <div class="pos-badge ${sBadge}">${sPosStr}</div>
         <div class="player-info">
           <div class="player-name">Scottie Scheffler</div>
           <div class="player-meta">
-            <span class="player-score ${scoreColor(sScore)}">${fmtScore(sScore)}${sThru && sThru !== '-' ? (sThru === 'F' ? ' · F' : ' · Thru ' + sThru) : ''}</span>
+            <span class="player-score ${scoreColor(sScoreVal)}">${fmtScore(sScoreVal)}${sThru && sThru !== '-' ? (sThru === 'F' ? ' · F' : ' · Thru ' + sThru) : ''}</span>
             <span class="split-tag">Northwood</span>
           </div>
         </div>
         <div class="player-right">
-          <div class="proj-win zero">Watch only</div>
+          <div class="proj-win ${sProj === 0 ? 'zero' : ''}">${sProj > 0 ? fmtMoney(sProj) : '—'}</div>
           <span class="cost-label">paid $6,300</span>
         </div>
       </div>`;
