@@ -1131,7 +1131,7 @@ async function fetchLiveScores() {
   try {
     const resp = await fetch(
       'https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard',
-      { headers: { 'Accept': 'application/json' } }
+      { headers: { 'Accept': 'application/json' }, cache: 'no-store' }
     );
     if (!resp.ok) throw new Error(`ESPN HTTP ${resp.status}`);
     const data = await resp.json();
@@ -1144,7 +1144,8 @@ async function fetchLiveScores() {
 
     if (!event) throw new Error(`No golf event found. Events: ${(data.events||[]).map(e=>e.name).join(', ')}`);
 
-    const competitors = (event.competitions || [{}])[0].competitors || [];
+    const eventComps = event.competitions || [{}];
+    const competitors = eventComps[eventComps.length - 1].competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
 
 
@@ -1194,8 +1195,23 @@ async function fetchLiveScores() {
       else if (/\d{1,2}:\d{2}\s*(AM|PM)/i.test(detail)) thru = detail.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)[0];
       else if (statusState === 'in') thru = '*';
 
-      // Today's round score — use total score (R1: they're identical; revisit for R2+)
-      const todayScore = statusState !== 'pre' ? score : null;
+      // Today's round score — for R2+ derive from cumulative minus prior completed rounds
+      const linescores = comp.linescores || [];
+      let todayScore = null;
+      if (statusState !== 'pre') {
+        if (linescores.length >= 2) {
+          // Sum prior completed rounds (all but last linescore entry)
+          let prevTopar = 0, prevValid = true;
+          for (let r = 0; r < linescores.length - 1; r++) {
+            const lsv = parseFloat(linescores[r].value ?? linescores[r].displayValue ?? '');
+            if (isNaN(lsv) || lsv === 0) { prevValid = false; break; }
+            // Raw strokes (>30) → subtract Augusta par 72; otherwise already to-par
+            prevTopar += lsv > 30 ? (lsv - 72) : lsv;
+          }
+          if (prevValid) todayScore = score - prevTopar;
+        }
+        if (todayScore === null) todayScore = score; // R1 or fallback: cumulative = today
+      }
 
       // Status
       const sName = comp.status?.type?.name || '';
