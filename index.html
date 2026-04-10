@@ -1188,11 +1188,6 @@ async function fetchLiveScores() {
       else if (detail === 'CUT') thru = 'CUT';
       else if (/^\d+$/.test(detail)) thru = detail;
       else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
-      if (thru === '-' && comp.linescores && statusState !== 'pre') {
-        const holes = (comp.linescores || []).filter(l => l.value !== undefined && l.value !== null).length;
-        if (holes >= 18) thru = 'F';
-        else if (holes > 0) thru = String(holes);
-      }
 
       // Today's round score — use total score (R1: they're identical; revisit for R2+)
       const todayScore = statusState !== 'pre' ? score : null;
