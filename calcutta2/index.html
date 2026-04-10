@@ -1163,6 +1163,18 @@ async function fetchLiveScores() {
       if (p && p < 999) positionCounts[p] = (positionCounts[p] || 0) + 1;
     });
 
+    // Debug: log first competitor's raw status so we can see ESPN's format
+    if (competitors[0]) {
+      const c0 = competitors[0];
+      console.log('[ESPN debug] first competitor:', c0.athlete?.displayName,
+        '| status.type.state:', c0.status?.type?.state,
+        '| status.type.shortDetail:', c0.status?.type?.shortDetail,
+        '| status.type.name:', c0.status?.type?.name,
+        '| status.thru:', c0.status?.thru,
+        '| status.period:', c0.status?.period,
+        '| linescores:', JSON.stringify(c0.linescores));
+    }
+
     const newScores = {};
     competitors.forEach(comp => {
       const name = comp.athlete?.displayName;
@@ -1189,15 +1201,17 @@ async function fetchLiveScores() {
         ? ((positionCounts[realPos] || 1) > 1 ? 'T' + realPos : String(realPos))
         : '';
 
-      // Thru — try shortDetail first, fall back to linescores count
+      // Thru — parse shortDetail, fall back to status.thru, then statusState
       const detail = comp.status?.type?.shortDetail || '';
       const statusState = comp.status?.type?.state || '';
+      const thruDirect = comp.status?.thru; // ESPN sometimes provides direct hole count
       let thru = '-';
       if (statusState === 'post') thru = 'F';
       else if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
-      else if (detail === 'CUT') thru = 'CUT';
-      else if (/^\d+$/.test(detail)) thru = detail;
+      else if (detail.toUpperCase() === 'CUT' || detail.toUpperCase().includes('WD')) thru = detail.toUpperCase();
       else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
+      else if (/^\*?\s*(\d+)\s*\*?$/.test(detail.trim())) thru = detail.trim().replace(/\*/g, '').trim(); // "9", "*9", "9*"
+      else if (typeof thruDirect === 'number' && thruDirect > 0) thru = String(thruDirect);
       else if (/\d{1,2}:\d{2}\s*(AM|PM)/i.test(detail)) thru = detail.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)[0];
       else if (statusState === 'in') thru = '*';
 
