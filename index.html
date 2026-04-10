@@ -1181,14 +1181,15 @@ async function fetchLiveScores() {
 
       // Thru — try shortDetail first, fall back to linescores count
       const detail = comp.status?.type?.shortDetail || '';
+      const statusState = comp.status?.type?.state || '';
       let thru = '-';
-      if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
+      if (statusState === 'post') thru = 'F';
+      else if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
       else if (detail === 'CUT') thru = 'CUT';
       else if (/^\d+$/.test(detail)) thru = detail;
       else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
-      const statusState = comp.status?.type?.state || '';
       if (thru === '-' && comp.linescores && statusState !== 'pre') {
-        const holes = comp.linescores.length;
+        const holes = (comp.linescores || []).filter(l => l.value !== undefined && l.value !== null).length;
         if (holes >= 18) thru = 'F';
         else if (holes > 0) thru = String(holes);
       }
