@@ -1239,14 +1239,19 @@ async function fetchLiveScores() {
 // GET SCORE FOR PICK
 // ============================================================
 function normalizeName(s) {
-  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[øØ]/g, 'o').toLowerCase();
 }
 
 function getScore(pickName) {
   const search = searchName(pickName);
-  // Try exact match first
+  // Exact match
   if (liveScores[search]) return liveScores[search];
-  // Fuzzy: normalized last name match (handles diacritics like ø → o)
+  // Full normalized name match (handles ø, å, ä, etc.)
+  const searchNorm = normalizeName(search);
+  for (const key of Object.keys(liveScores)) {
+    if (normalizeName(key) === searchNorm) return liveScores[key];
+  }
+  // Last name only match
   const lastName = normalizeName(search.split(' ').pop());
   for (const key of Object.keys(liveScores)) {
     if (normalizeName(key.split(' ').pop()) === lastName) return liveScores[key];
