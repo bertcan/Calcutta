@@ -1187,14 +1187,16 @@ async function fetchLiveScores() {
 
       // Thru — try shortDetail first, fall back to linescores count
       const detail = comp.status?.type?.shortDetail || '';
+      const statusState = comp.status?.type?.state || '';
       let thru = '-';
-      if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
+      if (statusState === 'post') thru = 'F';
+      else if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
       else if (detail === 'CUT') thru = 'CUT';
       else if (/^\d+$/.test(detail)) thru = detail;
       else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
-      const statusState = comp.status?.type?.state || '';
       if (thru === '-' && comp.linescores && statusState !== 'pre') {
-        const holes = comp.linescores.length;
+        // Only trust linescores for hole-by-hole data (length 18 = finished)
+        const holes = (comp.linescores || []).filter(l => l.value !== undefined && l.value !== null).length;
         if (holes >= 18) thru = 'F';
         else if (holes > 0) thru = String(holes);
       }
@@ -1249,9 +1251,14 @@ function normalizeName(s) {
 
 function getScore(pickName) {
   const search = searchName(pickName);
-  // Try exact match first
+  // Exact match
   if (liveScores[search]) return liveScores[search];
-  // Fuzzy: normalized last name match (handles diacritics like ø → o)
+  // Full normalized name match (handles ø, å, ä, etc.)
+  const searchNorm = normalizeName(search);
+  for (const key of Object.keys(liveScores)) {
+    if (normalizeName(key) === searchNorm) return liveScores[key];
+  }
+  // Last name only match
   const lastName = normalizeName(search.split(' ').pop());
   for (const key of Object.keys(liveScores)) {
     if (normalizeName(key.split(' ').pop()) === lastName) return liveScores[key];
