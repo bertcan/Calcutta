@@ -1028,11 +1028,12 @@ function computeTeamStats(teamName) {
     if (!isOwner && !isSplit) return;
     const score = getScore(pick.name);
     const pos = score ? score.position : null;
+    const tieCount = score ? (score.tieCount || 1) : 1;
     let ownership = 1.0;
     if (pick.splitPct) {
       ownership = isOwner ? (1 - pick.splitPct) : pick.splitPct;
     }
-    proj += projectedPayout(pos, 87) * ownership;
+    proj += projectedPayout(pos, 87, tieCount) * ownership;
   });
   return { invested, proj };
 }
@@ -1070,19 +1071,16 @@ function searchName(name) {
   return map[c] || c;
 }
 
-// Get projected payout based on finish position
-function projectedPayout(position, totalPlayers) {
+// Get projected payout based on finish position, splitting ties across relevant places
+function projectedPayout(position, totalPlayers, tieCount = 1) {
   if (!position || position > totalPlayers) return 0;
-  const payoutMap = {
-    1: PAYOUTS[0].pct,
-    2: PAYOUTS[1].pct,
-    3: PAYOUTS[2].pct,
-    4: PAYOUTS[3].pct,
-    5: PAYOUTS[4].pct,
-    6: PAYOUTS[5].pct,
-    7: PAYOUTS[6].pct,
-  };
-  return (payoutMap[position] || 0) * TOTAL_POT;
+  // Build 1-indexed pct array for place payouts (index 1 = 1st, 2 = 2nd, etc.)
+  const placePcts = [0, ...PAYOUTS.slice(0, 7).map(p => p.pct)];
+  let totalPct = 0;
+  for (let i = position; i < position + tieCount; i++) {
+    totalPct += placePcts[i] || 0;
+  }
+  return (totalPct / tieCount) * TOTAL_POT;
 }
 
 // ============================================================
@@ -1248,7 +1246,7 @@ async function fetchLiveScores() {
       newScores[name] = { name, position, posStr, score, todayScore, thru, status };
     });
 
-    // Re-compute posStr from score groupings (ESPN gives sequential numbers, not tied positions)
+    // Re-compute posStr and position from score groupings, store tieCount for split payouts
     const startedPlayers = Object.values(newScores).filter(p => p.status === 'active' && typeof p.score === 'number');
     const scoreGroups = {};
     startedPlayers.forEach(p => { (scoreGroups[p.score] = scoreGroups[p.score] || []).push(p); });
@@ -1256,7 +1254,7 @@ async function fetchLiveScores() {
     Object.keys(scoreGroups).map(Number).sort((a, b) => a - b).forEach(s => {
       const group = scoreGroups[s];
       const str = (group.length > 1 ? 'T' : '') + rank;
-      group.forEach(p => { p.posStr = str; });
+      group.forEach(p => { p.posStr = str; p.position = rank; p.tieCount = group.length; });
       rank += group.length;
     });
 
@@ -1347,7 +1345,8 @@ function renderMyTeam() {
     const thru = score ? score.thru : null;
     const status = score ? score.status : 'active';
 
-    const basePayout = projectedPayout(pos, 87);
+    const tieCount = score ? (score.tieCount || 1) : 1;
+    const basePayout = projectedPayout(pos, 87, tieCount);
     const myPayout = basePayout * ownership;
 
     const posClass = pos === 1 ? 'leader' : (status === 'cut' ? 'missed-cut' : 'made-cut');
@@ -1423,7 +1422,8 @@ function renderLeaderboard() {
     if (pick.inField && pick.price === 0) return;
     const score = getScore(pick.name);
     const pos = score ? score.position : null;
-    const fullPayout = projectedPayout(pos, 87);
+    const tieCount = score ? (score.tieCount || 1) : 1;
+    const fullPayout = projectedPayout(pos, 87, tieCount);
 
     // Credit primary owner their share
     const ownerPct = pick.splitPct ? (1 - pick.splitPct) : 1.0;
