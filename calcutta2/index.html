@@ -1237,10 +1237,11 @@ async function fetchLiveScores() {
         if (todayScore === null) todayScore = score; // R1 or fallback: cumulative = today
       }
 
-      // Status
+      // Status — check type.name and also shortDetail for "MC"
       const sName = comp.status?.type?.name || '';
-      const status = (sName.includes('CUT') || sName.includes('MISSED')) ? 'cut'
-                   : (sName.includes('WD') || sName.includes('WITHDRAWN')) ? 'wd'
+      const sDetail = comp.status?.type?.shortDetail || '';
+      const status = (sName.includes('CUT') || sName.includes('MISSED') || sDetail === 'MC' || sDetail === 'MDF') ? 'cut'
+                   : (sName.includes('WD') || sName.includes('WITHDRAWN') || sDetail === 'WD') ? 'wd'
                    : 'active';
 
       newScores[name] = { name, position, posStr, score, todayScore, thru, status };
@@ -1351,7 +1352,7 @@ function renderMyTeam() {
 
     const posClass = pos === 1 ? 'leader' : (status === 'cut' ? 'missed-cut' : 'made-cut');
     const badgeClass = pos <= 3 ? 'top3' : (pos <= 10 ? 'top10' : (status === 'cut' ? 'missed' : ''));
-    const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
+    const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
     const splitLabel = pick.splitPct ? `<span class="split-tag">${Math.round(ownership * 100)}% share</span>` : '';
 
     html += `
@@ -1639,7 +1640,7 @@ function renderField() {
     const thru = score ? score.thru : null;
     const status = score ? score.status : 'active';
     const isMe = pick._owners.includes(selectedTeam);
-    const posDisplay = status === 'cut' ? 'CUT' : (score?.posStr || '—');
+    const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || '—');
     const thruDisplay = thru && thru !== '-' ? thru : '—';
     const todayDisplay = todayScore !== null ? fmtScore(todayScore) : '—';
     const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
