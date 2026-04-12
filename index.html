@@ -1662,7 +1662,6 @@ function renderPrizes() {
       if (pick.inField || canonicalName(pick.name) === 'Field') return;
       const s = getScore(pick.name);
       if (!s || s.status === 'wd') return;
-      if (!wantHigh && s.status === 'cut') return; // cut players excluded from round low, included in round high
       const rs = Array.isArray(s.roundScores) && s.roundScores[rIdx] !== undefined ? s.roundScores[rIdx] : null;
       if (rs === null) return;
       const canon = canonicalName(pick.name);
