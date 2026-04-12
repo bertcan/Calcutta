@@ -349,6 +349,23 @@ color: var(--gold-light);
 
 .proj-win.zero { color: var(--text-dim); font-size: 13px; }
 
+.player-prizes {
+display: flex;
+flex-wrap: wrap;
+gap: 4px;
+margin-top: 5px;
+}
+.player-prize-tag {
+font-size: 10px;
+background: rgba(212,175,55,0.15);
+color: var(--gold);
+border-radius: 3px;
+padding: 2px 6px;
+letter-spacing: 0.3px;
+white-space: nowrap;
+}
+.player-prize-tag strong { font-weight: 700; }
+
 .cost-label {
 font-size: 9px;
 color: var(--text-dim);
@@ -1020,10 +1037,13 @@ function fmtMultiple(proj, invested) {
   return { text: txt, cls };
 }
 
-// Compute projected winnings for any team
+// Compute projected winnings for any team (position prizes + bonus prizes)
 function computeTeamStats(teamName) {
   let invested = TEAM_SPEND[teamName] || 0;
   let proj = 0;
+  const hasScores = Object.keys(liveScores).length > 0;
+  const rl = hasScores ? computeRoundLeaders() : null;
+
   ALL_PICKS.forEach(pick => {
     const isOwner = pick.owner === teamName;
     const isSplit = pick.splitOwner === teamName;
@@ -1036,6 +1056,25 @@ function computeTeamStats(teamName) {
       ownership = isOwner ? (1 - pick.splitPct) : pick.splitPct;
     }
     proj += projectedPayout(pos, 87, tieCount) * ownership;
+
+    // Bonus prize contributions (round lows/highs, low amateur)
+    if (rl && score && score.status === 'active') {
+      const cName = canonicalName(pick.name);
+      PAYOUTS.slice(8).forEach(payout => {
+        const roundMatch = payout.place.match(/(\d+)/);
+        const rNum = roundMatch ? parseInt(roundMatch[1]) : null;
+        const isHigh = payout.place.toLowerCase().includes('high');
+        const isLowAm = payout.place === 'Low Amateur';
+        if (isLowAm && rl.lowAm === cName) {
+          proj += payout.pct * TOTAL_POT * ownership;
+        } else if (rNum !== null) {
+          const roundData = rl.rounds[rNum - 1];
+          if (roundData && (isHigh ? roundData.high === cName : roundData.low === cName)) {
+            proj += payout.pct * TOTAL_POT * ownership;
+          }
+        }
+      });
+    }
   });
   // Add Northwood Scottie pick for Austin
   if (teamName === 'Austin Mai') {
@@ -1090,6 +1129,42 @@ function projectedPayout(position, totalPlayers, tieCount = 1) {
     totalPct += placePcts[i] || 0;
   }
   return (totalPct / tieCount) * TOTAL_POT;
+}
+
+function ordinal(n) {
+  if (n >= 11 && n <= 13) return n + 'th';
+  switch (n % 10) {
+    case 1: return n + 'st';
+    case 2: return n + 'nd';
+    case 3: return n + 'rd';
+    default: return n + 'th';
+  }
+}
+
+// Compute which pick name (canonical) leads each round low/high and low amateur
+function computeRoundLeaders() {
+  const rounds = [0, 1, 2, 3].map(rIdx => {
+    let lowLeader = null, lowBest = Infinity, highLeader = null, highBest = -Infinity;
+    ALL_PICKS.forEach(pick => {
+      if (pick.inField || canonicalName(pick.name) === 'Field') return;
+      const s = getScore(pick.name);
+      if (!s || s.status === 'cut' || s.status === 'wd') return;
+      const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
+      if (rs === undefined) return;
+      if (rs < lowBest)  { lowBest  = rs; lowLeader  = canonicalName(pick.name); }
+      if (rs > highBest) { highBest = rs; highLeader = canonicalName(pick.name); }
+    });
+    return { low: lowLeader, high: highLeader };
+  });
+  let lowAm = null, lowAmScore = Infinity;
+  ALL_PICKS.forEach(pick => {
+    const isAm = pick.name.includes('(a)') || canonicalName(pick.name) === 'Casey Jarvis';
+    if (!isAm) return;
+    const s = getScore(pick.name);
+    if (!s || s.status === 'cut' || s.status === 'wd') return;
+    if (s.score < lowAmScore) { lowAmScore = s.score; lowAm = canonicalName(pick.name); }
+  });
+  return { rounds, lowAm };
 }
 
 // ============================================================
@@ -1350,6 +1425,8 @@ function renderMyTeam() {
 
   const { invested, proj } = computeTeamStats(team);
   const mult = fmtMultiple(proj, invested);
+  const hasScores = Object.keys(liveScores).length > 0;
+  const rl = hasScores ? computeRoundLeaders() : null;
 
   let html = '';
   sorted.forEach((pick, i) => {
@@ -1372,6 +1449,42 @@ function renderMyTeam() {
     const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
     const splitLabel = pick.splitPct ? `<span class="split-tag">${Math.round(ownership * 100)}% share</span>` : '';
 
+    // Build prize breakdown tags
+    const prizeTags = [];
+    if (hasScores && score && status === 'active') {
+      // Finish position prize
+      if (pos && basePayout > 0) {
+        const posLabel = tieCount > 1
+          ? `T${pos} (${ordinal(pos)}–${ordinal(pos + tieCount - 1)} ÷${tieCount})`
+          : `${ordinal(pos)} Place`;
+        prizeTags.push(`<span class="player-prize-tag">${posLabel} <strong>${fmtMoney(Math.round(basePayout * ownership))}</strong></span>`);
+      }
+      // Bonus prizes (round lows/highs, low amateur)
+      if (rl) {
+        const cName = canonicalName(pick.name);
+        PAYOUTS.slice(8).forEach(payout => {
+          const roundMatch = payout.place.match(/(\d+)/);
+          const rNum = roundMatch ? parseInt(roundMatch[1]) : null;
+          const isHigh = payout.place.toLowerCase().includes('high');
+          const isLowAm = payout.place === 'Low Amateur';
+          let isLeader = false;
+          if (isLowAm && rl.lowAm === cName) {
+            isLeader = true;
+          } else if (rNum !== null) {
+            const roundData = rl.rounds[rNum - 1];
+            if (roundData && (isHigh ? roundData.high === cName : roundData.low === cName)) isLeader = true;
+          }
+          if (isLeader) {
+            const bonusAmt = Math.round(payout.pct * TOTAL_POT * ownership);
+            prizeTags.push(`<span class="player-prize-tag">${payout.place} <strong>${fmtMoney(bonusAmt)}</strong></span>`);
+          }
+        });
+      }
+    }
+    const prizeRow = prizeTags.length > 0
+      ? `<div class="player-prizes">${prizeTags.join('')}</div>`
+      : '';
+
     html += `
       <div class="player-card ${posClass}" style="animation-delay:${i * 0.04}s">
         <div class="pos-badge ${badgeClass}">${posDisplay}</div>
@@ -1381,6 +1494,7 @@ function renderMyTeam() {
             <span class="player-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}${thru && thru !== '-' ? (thru === 'F' ? ' · F' : ' · Thru ' + thru) : ''}</span>
             ${splitLabel}
           </div>
+          ${prizeRow}
         </div>
         <div class="player-right">
           <div class="proj-win ${myPayout === 0 ? 'zero' : ''}">${myPayout > 0 ? fmtMoney(myPayout) : '—'}</div>
