@@ -1121,8 +1121,8 @@ function fmtScore(score) {
 }
 
 function canonicalName(name) {
-  // Strip half indicators for Scottie
-  return name.replace(' (1/2)', '').replace(' (2/2)', '').trim();
+  // Strip half indicators for Scottie and amateur tag
+  return name.replace(' (1/2)', '').replace(' (2/2)', '').replace(/\s*\(a\)\s*$/i, '').trim();
 }
 
 // Map pick names to Masters API search names
@@ -1693,17 +1693,14 @@ function renderPrizes() {
       if (!lowAm || (s.position || 999) < (lowAm.score.position || 999)) lowAm = { pick, score: s };
     });
   } else {
-    // Fallback: best combined R1+R2 to-par among all amateurs
-    let bestR1R2 = Infinity;
+    // Fallback: best cumulative score (R1+R2 combined to-par) among all amateurs
+    // s.score is the cumulative to-par, which for cut players equals R1+R2
+    let bestCutScore = Infinity;
     amateurPicks.forEach(pick => {
       const s = getScore(pick.name);
       if (!s || s.status === 'wd') return;
-      const rs = s.roundScores || [];
-      const r1 = rs[0] !== undefined ? rs[0] : 0;
-      const r2 = rs[1] !== undefined ? rs[1] : 0;
-      if (rs[0] === undefined && rs[1] === undefined) return;
-      const total = r1 + r2;
-      if (total < bestR1R2) { bestR1R2 = total; lowAm = { pick, score: s, r1r2Total: total }; lowAmFallback = true; }
+      const sc = s.score !== null && s.score !== undefined ? s.score : Infinity;
+      if (sc < bestCutScore) { bestCutScore = sc; lowAm = { pick, score: s, r1r2Total: sc }; lowAmFallback = true; }
     });
   }
 
