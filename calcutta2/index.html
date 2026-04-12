@@ -1246,15 +1246,49 @@ async function fetchLiveScores() {
         if (todayScore === null) todayScore = score; // R1 or fallback: cumulative = today
       }
 
-      // Status — check type.name and also shortDetail for "MC"
-      const sName = comp.status?.type?.name || '';
-      const sDetail = comp.status?.type?.shortDetail || '';
-      const status = (sName.includes('CUT') || sName.includes('MISSED') || sDetail === 'MC' || sDetail === 'MDF') ? 'cut'
-                   : (sName.includes('WD') || sName.includes('WITHDRAWN') || sDetail === 'WD') ? 'wd'
-                   : 'active';
+      // Status — check every available ESPN field
+      const sName    = (comp.status?.type?.name       || '').toUpperCase();
+      const sDetail  = (comp.status?.type?.shortDetail || '').toUpperCase();
+      const sDisp    = (comp.status?.displayValue      || '').toUpperCase();
+      const detailUp = detail.toUpperCase();
+      const posDisp  = posDisplay.toUpperCase();
+      // ESPN sets comp.score = "CUT" for missed-cut players (confirmed from ESPN UI)
+      const scoreDisp = toParStr.toUpperCase();
+      const status = (
+        sName.includes('CUT') || sName.includes('MISSED') ||
+        sDetail === 'MC' || sDetail === 'MDF' || sDetail.includes('CUT') ||
+        sDisp === 'MC' || sDisp.includes('CUT') ||
+        detailUp === 'MC' || detailUp === 'CUT' || thru === 'CUT' ||
+        posDisp === 'MC' || posDisp === 'CUT' ||
+        scoreDisp === 'MC' || scoreDisp === 'CUT'
+      ) ? 'cut'
+        : (
+        sName.includes('WD') || sName.includes('WITHDRAWN') ||
+        sDetail === 'WD' || sDisp === 'WD' || thru === 'WD'
+      ) ? 'wd' : 'active';
 
       newScores[name] = { name, position, posStr, score, todayScore, thru, status, roundScores };
     });
+
+    // ── Round-count fallback cut detection ──────────────────────────────────────────────────
+    // If ESPN status fields didn't identify cut players, infer from round data:
+    // After R2 cut, cut players have only R1+R2 data (roundScores.length < tournamentRound)
+    // and show as finished (thru='F'). Active players waiting for their round show tee times,
+    // not 'F', so this heuristic is safe.
+    if (tournamentRound >= 3) {
+      Object.values(newScores).forEach(p => {
+        if (p.status !== 'active') return;
+        // Count rounds with any data (including 0 for even par)
+        const roundsWithData = (p.roundScores || []).filter(v => v !== undefined).length;
+        // thru is 'F' (finished) or 'CUT' (ESPN shows CUT in thru column for missed-cut players)
+        const notPlaying = p.thru === 'F' || p.thru === 'CUT' || p.thru === '-';
+        if (roundsWithData < tournamentRound && notPlaying) {
+          p.status = 'cut';
+          console.log('[CutInferred]', p.name, '| rounds:', roundsWithData, '< tournamentRound:', tournamentRound, '| thru:', p.thru);
+        }
+      });
+    }
+    // ────────────────────────────────────────────────────────────────────────────────────────
 
     // Re-compute posStr and position from score groupings, store tieCount for split payouts
     const startedPlayers = Object.values(newScores).filter(p => p.status === 'active' && typeof p.score === 'number');
