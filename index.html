@@ -1651,19 +1651,29 @@ function renderPrizes() {
     }
   }
 
-  // Per-round leader helper: rIdx=0 for R1, 1 for R2, etc. Returns array to handle ties.
+  // Per-round leader helper: rIdx=0 for R1, 1 for R2, etc.
+  // Returns array of unique golfers tied at best score. Each entry has {picks[], score, roundScore}.
+  // Picks with the same canonical name (e.g. Scottie 1/2 and 2/2) are merged into one entry
+  // so they count as ONE golfer for tie-split purposes, not two.
   const getRndLeader = (rIdx, wantHigh) => {
-    let leaders = [], best = wantHigh ? -Infinity : Infinity;
+    let best = wantHigh ? -Infinity : Infinity;
+    let playerMap = {};
     ALL_PICKS.forEach(pick => {
       if (pick.inField || canonicalName(pick.name) === 'Field') return;
       const s = getScore(pick.name);
       if (!s || s.status === 'cut' || s.status === 'wd') return;
       const rs = Array.isArray(s.roundScores) && s.roundScores[rIdx] !== undefined ? s.roundScores[rIdx] : null;
       if (rs === null) return;
-      if (wantHigh ? rs > best : rs < best) { best = rs; leaders = [{ pick, score: s, roundScore: rs }]; }
-      else if (rs === best) { leaders.push({ pick, score: s, roundScore: rs }); }
+      const canon = canonicalName(pick.name);
+      if (wantHigh ? rs > best : rs < best) {
+        best = rs; playerMap = {};
+        playerMap[canon] = { picks: [pick], score: s, roundScore: rs };
+      } else if (rs === best) {
+        if (playerMap[canon]) playerMap[canon].picks.push(pick);
+        else playerMap[canon] = { picks: [pick], score: s, roundScore: rs };
+      }
     });
-    return leaders;
+    return Object.values(playerMap);
   };
 
   // Compute Low Amateur leader
@@ -1699,8 +1709,11 @@ function renderPrizes() {
         if (rLeaders.length > 0) {
           leader = rLeaders[0];
           tieCount = rLeaders.length;
-          bonusPlayer = rLeaders.map(l => canonicalName(l.pick.name)).join(' / ');
-          bonusOwner = rLeaders.map(l => shortName(l.pick.owner)).join(' / ');
+          // For players split into halves (e.g. Scottie 1/2 + 2/2), show all owners under one name
+          bonusPlayer = rLeaders.map(l => canonicalName(l.picks[0].name)).join(' / ');
+          bonusOwner = rLeaders.map(l =>
+            l.picks.length > 1 ? l.picks.map(p => shortName(p.owner)).join('/') : shortName(l.picks[0].owner)
+          ).join(' · ');
           bonusScore = ' ' + fmtScore(rLeaders[0].roundScore) + (tieCount > 1 ? ' (tied)' : '');
         }
       }
