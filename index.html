@@ -1681,7 +1681,7 @@ function renderPrizes() {
   html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
   bonusPayouts.forEach((payout) => {
     const payoutAmt = Math.round(payout.pct * TOTAL_POT);
-    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '', leader = null;
+    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '', leader = null, tieCount = 1;
 
     const roundMatch = payout.place.match(/(\d+)/);
     const roundNum = roundMatch ? parseInt(roundMatch[1]) : null;
@@ -1698,13 +1698,18 @@ function renderPrizes() {
         const rLeaders = getRndLeader(roundNum - 1, isHigh);
         if (rLeaders.length > 0) {
           leader = rLeaders[0];
+          tieCount = rLeaders.length;
           bonusPlayer = rLeaders.map(l => canonicalName(l.pick.name)).join(' / ');
           bonusOwner = rLeaders.map(l => shortName(l.pick.owner)).join(' / ');
-          bonusScore = ' ' + fmtScore(rLeaders[0].roundScore) + (rLeaders.length > 1 ? ' (tied)' : '');
+          bonusScore = ' ' + fmtScore(rLeaders[0].roundScore) + (tieCount > 1 ? ' (tied)' : '');
         }
       }
     }
 
+    const perAmt = Math.round(payoutAmt / tieCount);
+    const amtDisplay = tieCount > 1
+      ? `${fmtMoney(payoutAmt)} <span style="font-size:0.75em;opacity:0.65">÷${tieCount} = ${fmtMoney(perAmt)} each</span>`
+      : fmtMoney(payoutAmt);
     const isLive = hasScores && leader !== null;
     html += `
       <div class="prize-card">
@@ -1713,11 +1718,11 @@ function renderPrizes() {
             <span class="prize-place">${payout.place}</span>
             <span class="prize-pct">${(payout.pct * 100).toFixed(1)}%</span>
           </div>
-          <div class="prize-amount">${fmtMoney(payoutAmt)}</div>
+          <div class="prize-amount">${amtDisplay}</div>
         </div>
         <div class="prize-bottom-row">
           <div class="prize-cell" style="grid-column:span 2">
-            <div class="prize-cell-label">${isLive ? 'Current Leader' : 'Determined per round'}</div>
+            <div class="prize-cell-label">${isLive ? (tieCount > 1 ? 'Current Leaders' : 'Current Leader') : 'Determined per round'}</div>
             <div class="prize-cell-value ${isLive ? 'highlight' : 'dim'}">${isLive ? bonusPlayer + bonusScore + ' · ' + bonusOwner : 'Updates during play'}</div>
           </div>
         </div>
