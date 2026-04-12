@@ -349,23 +349,6 @@ color: var(--gold-light);
 
 .proj-win.zero { color: var(--text-dim); font-size: 13px; }
 
-.player-prizes {
-display: flex;
-flex-wrap: wrap;
-gap: 4px;
-margin-top: 5px;
-}
-.player-prize-tag {
-font-size: 10px;
-background: rgba(212,175,55,0.15);
-color: var(--gold);
-border-radius: 3px;
-padding: 2px 6px;
-letter-spacing: 0.3px;
-white-space: nowrap;
-}
-.player-prize-tag strong { font-weight: 700; }
-
 .cost-label {
 font-size: 9px;
 color: var(--text-dim);
@@ -446,21 +429,15 @@ text-align: right;
 .lb-proj.negative { color: var(--red-light); font-size: 12px; }
 
 /* ===== FIELD VIEW ===== */
-#field-list {
-overflow-x: auto;
--webkit-overflow-scrolling: touch;
-}
-
 .field-header, .field-player {
 display: grid;
-grid-template-columns: 34px 110px 40px 50px 42px 54px 32px 32px 32px 32px 40px;
+grid-template-columns: 40px 1fr 42px 42px 48px 72px;
 align-items: center;
-padding: 7px 10px;
-min-width: 502px;
+padding: 8px 12px;
 }
 
 .field-header {
-font-size: 9px;
+font-size: 10px;
 color: var(--text-dim);
 font-weight: 700;
 letter-spacing: 0.06em;
@@ -478,60 +455,38 @@ transition: background 0.15s;
 }
 
 .field-player:active { background: rgba(255,255,255,0.03); }
-.field-player.is-cut { opacity: 0.6; }
 
 .field-pos {
-font-size: 10px;
+font-size: 11px;
 color: var(--text-dim);
 text-align: center;
 font-weight: 600;
 }
 
 .field-name {
-font-size: 12px;
+font-size: 13px;
 color: var(--cream);
+font-family: ‘Playfair Display’, serif;
 font-weight: 600;
-white-space: nowrap;
-overflow: hidden;
-text-overflow: ellipsis;
 padding-right: 4px;
 }
 
 .field-score {
-font-size: 11px;
+font-size: 12px;
 font-weight: 600;
 text-align: center;
 }
 
-.field-rnd {
-font-size: 11px;
-text-align: center;
-color: var(--text-dim);
-font-weight: 400;
-}
-
 .field-owner {
-font-size: 9px;
+font-size: 10px;
 color: var(--text-dim);
-text-align: center;
+text-align: right;
 white-space: nowrap;
 overflow: hidden;
 text-overflow: ellipsis;
 }
 
 .field-owner.mine { color: var(--gold); font-weight: 600; }
-
-.cut-separator {
-padding: 8px 12px;
-font-size: 11px;
-color: var(--text-dim);
-font-style: italic;
-text-align: center;
-background: rgba(0,0,0,0.25);
-border-top: 1px solid rgba(255,255,255,0.08);
-border-bottom: 1px solid rgba(255,255,255,0.08);
-min-width: 502px;
-}
 
 /* ===== PAYOUTS VIEW ===== */
 .payout-card {
@@ -913,7 +868,6 @@ const PAYOUTS = [
   { place: 'Low Amateur',     pct: 0.02  },
 ];
 
-
 // Full Calcutta picks from XLS
 const ALL_PICKS = [
   { id: 1,  name: 'Scottie Scheffler (1/2)', owner: 'Carter Hickok',   price: 7150 },
@@ -1066,13 +1020,10 @@ function fmtMultiple(proj, invested) {
   return { text: txt, cls };
 }
 
-// Compute projected winnings for any team (position prizes + bonus prizes)
+// Compute projected winnings for any team
 function computeTeamStats(teamName) {
   let invested = TEAM_SPEND[teamName] || 0;
   let proj = 0;
-  const hasScores = Object.keys(liveScores).length > 0;
-  const rl = hasScores ? computeRoundLeaders() : null;
-
   ALL_PICKS.forEach(pick => {
     const isOwner = pick.owner === teamName;
     const isSplit = pick.splitOwner === teamName;
@@ -1085,26 +1036,6 @@ function computeTeamStats(teamName) {
       ownership = isOwner ? (1 - pick.splitPct) : pick.splitPct;
     }
     proj += projectedPayout(pos, 87, tieCount) * ownership;
-
-    // Bonus prize contributions (round lows/highs, low amateur) — split by tie count
-    if (rl && score && score.status === 'active') {
-      const cName = canonicalName(pick.name);
-      PAYOUTS.slice(8).forEach(payout => {
-        const roundMatch = payout.place.match(/(\d+)/);
-        const rNum = roundMatch ? parseInt(roundMatch[1]) : null;
-        const isHigh = payout.place.toLowerCase().includes('high');
-        const isLowAm = payout.place === 'Low Amateur';
-        if (isLowAm && rl.lowAm?.leaders.includes(cName)) {
-          proj += (payout.pct * TOTAL_POT / rl.lowAm.tieCount) * ownership;
-        } else if (rNum !== null) {
-          const roundData = rl.rounds[rNum - 1];
-          const slot = isHigh ? roundData?.high : roundData?.low;
-          if (slot?.leaders.includes(cName)) {
-            proj += (payout.pct * TOTAL_POT / slot.tieCount) * ownership;
-          }
-        }
-      });
-    }
   });
   // Add Northwood Scottie pick for Austin
   if (teamName === 'Austin Mai') {
@@ -1159,52 +1090,6 @@ function projectedPayout(position, totalPlayers, tieCount = 1) {
     totalPct += placePcts[i] || 0;
   }
   return (totalPct / tieCount) * TOTAL_POT;
-}
-
-function ordinal(n) {
-  if (n >= 11 && n <= 13) return n + 'th';
-  switch (n % 10) {
-    case 1: return n + 'st';
-    case 2: return n + 'nd';
-    case 3: return n + 'rd';
-    default: return n + 'th';
-  }
-}
-
-// Compute which pick names lead each round low/high (with tie counts) and low amateur.
-// Eligibility for a round prize = having a roundScores[rIdx] value, regardless of
-// cut/WD status — cut players completed earlier rounds and are eligible for those prizes.
-function computeRoundLeaders() {
-  const rounds = [0, 1, 2, 3].map(rIdx => {
-    let lowBest = Infinity, highBest = -Infinity;
-    let lowLeaders = [], highLeaders = [];
-    ALL_PICKS.forEach(pick => {
-      if (pick.inField || canonicalName(pick.name) === 'Field') return;
-      const s = getScore(pick.name);
-      if (!s) return;
-      const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
-      if (rs === undefined) return; // didn't play this round
-      if (rs < lowBest)        { lowBest  = rs; lowLeaders  = [canonicalName(pick.name)]; }
-      else if (rs === lowBest)  { lowLeaders.push(canonicalName(pick.name)); }
-      if (rs > highBest)        { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
-      else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
-    });
-    return {
-      low:  lowLeaders.length  > 0 ? { leaders: lowLeaders,  tieCount: lowLeaders.length  } : null,
-      high: highLeaders.length > 0 ? { leaders: highLeaders, tieCount: highLeaders.length } : null,
-    };
-  });
-  let lowAm = null, lowAmScore = Infinity, lowAmLeaders = [];
-  ALL_PICKS.forEach(pick => {
-    const isAm = pick.name.includes('(a)') || canonicalName(pick.name) === 'Casey Jarvis';
-    if (!isAm) return;
-    const s = getScore(pick.name);
-    if (!s || s.status === 'cut' || s.status === 'wd') return;
-    if (s.score < lowAmScore)       { lowAmScore = s.score; lowAmLeaders = [canonicalName(pick.name)]; }
-    else if (s.score === lowAmScore) { lowAmLeaders.push(canonicalName(pick.name)); }
-  });
-  lowAm = lowAmLeaders.length > 0 ? { leaders: lowAmLeaders, tieCount: lowAmLeaders.length } : null;
-  return { rounds, lowAm };
 }
 
 // ============================================================
@@ -1272,158 +1157,68 @@ async function fetchLiveScores() {
 
     if (!event) throw new Error(`No golf event found. Events: ${(data.events||[]).map(e=>e.name).join(', ')}`);
 
-    const eventComps = event.competitions || [{}];
-    const competition = eventComps[eventComps.length - 1];
-    // Current tournament round (1–4) — used to cap linescore entries so future rounds don't show
-    const tournamentRound = competition?.status?.period || event.status?.period || 4;
-    console.log('[Tournament] round:', tournamentRound, '| event:', event.name);
-
+    const competition = (event.competitions || [{}]).at(-1);
+    const tournamentRound = competition?.status?.period || 1;
     const competitors = competition.competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
-
-
-    // Pre-count position occurrences across ALL competitors to detect ties
-    const positionCounts = {};
-    competitors.forEach(comp => {
-      const pd = comp.status?.position?.displayName || comp.position?.displayName || '';
-      const p = parseInt(pd.replace(/^T/, ''));
-      if (p && p < 999) positionCounts[p] = (positionCounts[p] || 0) + 1;
-    });
-
-    // Debug: log first few competitors' raw status data
-    competitors.slice(0, 3).forEach((c0, idx) => {
-      console.log(`[ESPN debug #${idx}] ${c0.athlete?.displayName}`,
-        '| type.state:', c0.status?.type?.state,
-        '| type.shortDetail:', c0.status?.type?.shortDetail,
-        '| type.detail:', c0.status?.type?.detail,
-        '| status.state:', c0.status?.state,
-        '| status.displayValue:', c0.status?.displayValue,
-        '| status.thru:', c0.status?.thru,
-        '| status.period:', c0.status?.period,
-        '| score:', c0.score,
-        '| linescores:', JSON.stringify(c0.linescores));
-    });
 
     const newScores = {};
     competitors.forEach(comp => {
       const name = comp.athlete?.displayName;
       if (!name) return;
 
-      // Score to par — comp.score is a direct string like "-4", "E", "+2"
-      const toParStr = (typeof comp.score === 'string' ? comp.score : comp.score?.displayValue) || 'E';
-      let score = 0;
-      if (toParStr && toParStr !== 'E' && toParStr !== '--') {
-        score = parseInt(toParStr.replace('+', '')) || 0;
-      }
-
-      // Position — try known ESPN locations
-      const statsArr = Array.isArray(comp.statistics) ? comp.statistics : [];
-      const stats = Object.fromEntries(statsArr.map(s => [s.name, s.displayValue]));
-      const posDisplay = comp.status?.position?.displayName
-        || comp.position?.displayName
-        || stats.position || stats.rank || '';
-      const realPos = parseInt(posDisplay.replace(/^T/, ''));
-      // For sorting: use real position, fall back to comp.order so list stays ordered
-      const position = realPos || comp.order || 999;
-      // For display: only show if we have a real leaderboard position (not just sort order)
-      const posStr = realPos
-        ? ((positionCounts[realPos] || 1) > 1 ? 'T' + realPos : String(realPos))
-        : '';
-
-      // Thru — check multiple ESPN field paths; API version varies
-      const detail = comp.status?.type?.shortDetail
-                  || comp.status?.displayValue
-                  || comp.status?.shortDetail
-                  || comp.status?.type?.detail
-                  || '';
-      const statusState = comp.status?.type?.state || comp.status?.state || '';
-      const thruDirect = comp.status?.thru ?? comp.status?.type?.thru;
-      let thru = '-';
-      // Cut/WD MUST be checked before statusState='post' — cut players are also in 'post' state
-      if (detail.toUpperCase() === 'CUT' || detail.toUpperCase() === 'MC') thru = 'CUT';
-      else if (detail.toUpperCase().includes('WD')) thru = 'WD';
-      else if (statusState === 'post') thru = 'F';
-      else if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
-      else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
-      else if (/^\*?\s*(\d+)\s*\*?$/.test(detail.trim())) thru = detail.trim().replace(/\*/g, '').trim();
-      else if (typeof thruDirect === 'number' && thruDirect > 0) thru = String(thruDirect);
-      else if (/\d{1,2}:\d{2}\s*(AM|PM)/i.test(detail)) thru = detail.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)[0];
-      else if (statusState === 'in') thru = '*';
-
-      // Today's round score — for R2+ derive from cumulative minus prior completed rounds
       const linescores = comp.linescores || [];
 
-      // Per-round scores (index 0 = R1, 1 = R2, etc.) — to-par values
-      // Cap at tournamentRound so future-round placeholder entries are never stored
-      const roundScores = [];
-      linescores.forEach((ls, idx) => {
-        if (idx >= tournamentRound) return; // skip rounds beyond current tournament round
-        const lsv = parseFloat(ls.value ?? ls.displayValue ?? '');
-        if (isNaN(lsv)) return;
-        roundScores[idx] = lsv > 30 ? (lsv - 72) : lsv;
-      });
+      // Cut detection: active players always have a placeholder linescore for the current round,
+      // so linescores.length === tournamentRound. Cut players are one behind.
+      const isCut = linescores.length > 0 && linescores.length < tournamentRound;
+      const status = isCut ? 'cut' : 'active';
 
-      let todayScore = null;
-      if (statusState !== 'pre') {
-        if (linescores.length >= 2) {
-          // Sum prior completed rounds (all but last linescore entry)
-          let prevTopar = 0, prevValid = true;
-          for (let r = 0; r < linescores.length - 1; r++) {
-            const lsv = parseFloat(linescores[r].value ?? linescores[r].displayValue ?? '');
-            if (isNaN(lsv) || lsv === 0) { prevValid = false; break; }
-            // Raw strokes (>30) → subtract Augusta par 72; otherwise already to-par
-            prevTopar += lsv > 30 ? (lsv - 72) : lsv;
+      // Total score (to-par number for tie grouping and color)
+      const toParStr = comp.score || 'E';
+      const score = toParStr === 'E' ? 0 : (parseInt(toParStr.replace('+', '')) || 0);
+
+      // Current round linescore (placeholder if not yet played, real if in progress or complete)
+      const currentLs = linescores[tournamentRound - 1];
+
+      // Today's score: only show when round has actual strokes (value > 0)
+      const todayScore = (currentLs && currentLs.value > 0) ? currentLs.displayValue : null;
+
+      // Thru: F when complete, hole number when in progress, tee time when not started, CUT if cut
+      let thru = '-';
+      if (isCut) {
+        thru = 'CUT';
+      } else if (currentLs) {
+        if (currentLs.value >= 50) {
+          thru = 'F';
+        } else if (currentLs.value > 0) {
+          // In progress — count holes from nested hole-by-hole linescores
+          thru = String(currentLs.linescores?.length || '*');
+        } else {
+          // Not started — show tee time from stats[6]
+          const teeRaw = currentLs.statistics?.categories?.[0]?.stats?.[6]?.displayValue;
+          if (teeRaw) {
+            const m = teeRaw.match(/(\d{1,2}):(\d{2}):\d{2}/);
+            if (m) {
+              const h = parseInt(m[1]), min = m[2];
+              thru = `${h % 12 || 12}:${min} ${h >= 12 ? 'PM' : 'AM'}`;
+            }
           }
-          if (prevValid) todayScore = score - prevTopar;
         }
-        if (todayScore === null) todayScore = score; // R1 or fallback: cumulative = today
       }
 
-      // Status — check every available ESPN field
-      const sName    = (comp.status?.type?.name       || '').toUpperCase();
-      const sDetail  = (comp.status?.type?.shortDetail || '').toUpperCase();
-      const sDisp    = (comp.status?.displayValue      || '').toUpperCase();
-      const detailUp = detail.toUpperCase();
-      const posDisp  = posDisplay.toUpperCase(); // 'MC' for missed-cut players
-      const scoreDisp = toParStr.toUpperCase();  // comp.score might be 'MC' for cut players
-      const status = (
-        sName.includes('CUT') || sName.includes('MISSED') ||
-        sDetail === 'MC' || sDetail === 'MDF' || sDetail.includes('CUT') ||
-        sDisp === 'MC' || sDisp.includes('CUT') ||
-        detailUp === 'MC' || thru === 'CUT' ||
-        posDisp === 'MC' || posDisp === 'CUT' ||
-        scoreDisp === 'MC'
-      ) ? 'cut'
-        : (
-        sName.includes('WD') || sName.includes('WITHDRAWN') ||
-        sDetail === 'WD' || sDisp === 'WD' || thru === 'WD'
-      ) ? 'wd' : 'active';
+      // Per-round to-par numbers (for round prize comparisons) — skip placeholders (value=0)
+      const roundScores = linescores.map(ls =>
+        ls.value > 0 ? (ls.displayValue === 'E' ? 0 : (parseInt(ls.displayValue.replace('+', '')) || 0)) : undefined
+      );
 
-      newScores[name] = { name, position, posStr, score, todayScore, thru, status, roundScores };
+      newScores[name] = { name, position: comp.order || 999, posStr: '', score, todayScore, thru, status, roundScores };
     });
 
-    // ── Round-count fallback cut detection ──────────────────────────────────────────────────
-    // If ESPN status fields didn't identify cut players, infer from round data:
-    // After R2 cut, cut players have only R1+R2 data (roundScores.length < tournamentRound)
-    // and show as finished (thru='F'). Active players waiting for their round show tee times,
-    // not 'F', so this heuristic is safe.
-    if (tournamentRound >= 3) {
-      Object.values(newScores).forEach(p => {
-        if (p.status !== 'active') return;
-        // Count rounds with any data (including 0 for even par)
-        const roundsWithData = (p.roundScores || []).filter(v => v !== undefined).length;
-        if (roundsWithData < tournamentRound && p.thru === 'F') {
-          p.status = 'cut';
-          console.log('[CutInferred]', p.name, '| rounds:', roundsWithData, '< tournamentRound:', tournamentRound, '| thru:', p.thru);
-        }
-      });
-    }
-    // ────────────────────────────────────────────────────────────────────────────────────────
-
-    // Re-compute posStr and position from score groupings, store tieCount for split payouts
-    const startedPlayers = Object.values(newScores).filter(p => p.status === 'active' && typeof p.score === 'number');
+    // Compute T-positions for active players grouped by score
+    const activePlayers = Object.values(newScores).filter(p => p.status === 'active');
     const scoreGroups = {};
-    startedPlayers.forEach(p => { (scoreGroups[p.score] = scoreGroups[p.score] || []).push(p); });
+    activePlayers.forEach(p => { (scoreGroups[p.score] = scoreGroups[p.score] || []).push(p); });
     let rank = 1;
     Object.keys(scoreGroups).map(Number).sort((a, b) => a - b).forEach(s => {
       const group = scoreGroups[s];
@@ -1434,41 +1229,8 @@ async function fetchLiveScores() {
 
     if (Object.keys(newScores).length === 0) throw new Error(`Parsed 0 players from: ${event.name}. Stats keys: ${JSON.stringify(Object.fromEntries((competitors[0]?.statistics||[]).map(s=>[s.name,s.displayValue])))}`);
 
-    // Debug: status summary + cut player raw data
-    const _cut = Object.values(newScores).filter(p => p.status === 'cut');
-    const _wd  = Object.values(newScores).filter(p => p.status === 'wd');
-    console.log(`[StatusSummary] total=${Object.keys(newScores).length} active=${Object.keys(newScores).length-_cut.length-_wd.length} cut=${_cut.length} wd=${_wd.length}`);
-    if (_cut.length === 0) {
-      // Cut detection failed — log last 5 competitors' full raw data to diagnose
-      console.warn('[CutDetect MISS] tournamentRound:', tournamentRound, '— last 5 competitors raw:',
-        competitors.slice(-5).map(c => ({
-          name: c.athlete?.displayName,
-          score: c.score,
-          positionDisplayName: c.status?.position?.displayName || c.position?.displayName,
-          typeName: c.status?.type?.name,
-          shortDetail: c.status?.type?.shortDetail,
-          displayValue: c.status?.displayValue,
-          typeState: c.status?.type?.state,
-          linescores: JSON.stringify(c.linescores),
-        })));
-    } else {
-      console.log('[CutDetect OK] Sample cut player:', _cut[0].name, '| thru:', _cut[0].thru, '| roundScores:', JSON.stringify(_cut[0].roundScores));
-    }
-    // Debug: log first player with R4 linescore data
-    const _r4comp = competitors.find(c => c.linescores?.length >= 4);
-    if (_r4comp) console.log('[R4 linescore]', _r4comp.athlete?.displayName, '| thru:', _r4comp.status?.thru, '| state:', _r4comp.status?.type?.state, '| linescores:', JSON.stringify(_r4comp.linescores));
-
     liveScores = newScores;
     lastFetch = new Date();
-
-    // Debug: log round leaders so we can verify tie detection
-    const rl = computeRoundLeaders();
-    console.log('[RoundLeaders]', JSON.stringify(rl.rounds.map((r, i) => ({
-      round: i + 1,
-      low:  r.low  ? r.low.leaders  : null,
-      high: r.high ? r.high.leaders : null,
-    })), null, 2));
-
     renderAll();
     updateCountdown();
 
@@ -1539,8 +1301,6 @@ function renderMyTeam() {
 
   const { invested, proj } = computeTeamStats(team);
   const mult = fmtMultiple(proj, invested);
-  const hasScores = Object.keys(liveScores).length > 0;
-  const rl = hasScores ? computeRoundLeaders() : null;
 
   let html = '';
   sorted.forEach((pick, i) => {
@@ -1563,44 +1323,6 @@ function renderMyTeam() {
     const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
     const splitLabel = pick.splitPct ? `<span class="split-tag">${Math.round(ownership * 100)}% share</span>` : '';
 
-    // Build prize breakdown tags and total prize amount
-    const prizeTags = [];
-    let totalPrize = 0;
-    if (hasScores && score && status === 'active') {
-      // Finish position prize
-      if (pos && basePayout > 0) {
-        const posAmt = Math.round(basePayout * ownership);
-        totalPrize += posAmt;
-        const posLabel = tieCount > 1
-          ? `T${pos} (${ordinal(pos)}–${ordinal(pos + tieCount - 1)} ÷${tieCount})`
-          : `${ordinal(pos)} Place`;
-        prizeTags.push(`<span class="player-prize-tag">${posLabel} <strong>${fmtMoney(posAmt)}</strong></span>`);
-      }
-      // Bonus prizes (round lows/highs, low amateur) — split by tie count
-      if (rl) {
-        const cName = canonicalName(pick.name);
-        PAYOUTS.slice(8).forEach(payout => {
-          const roundMatch = payout.place.match(/(\d+)/);
-          const rNum = roundMatch ? parseInt(roundMatch[1]) : null;
-          const isHigh = payout.place.toLowerCase().includes('high');
-          const isLowAm = payout.place === 'Low Amateur';
-          let slot = null;
-          if (isLowAm) { slot = rl.lowAm; }
-          else if (rNum !== null) { slot = isHigh ? rl.rounds[rNum-1]?.high : rl.rounds[rNum-1]?.low; }
-          if (slot?.leaders.includes(cName)) {
-            const bonusAmt = Math.round((payout.pct * TOTAL_POT / slot.tieCount) * ownership);
-            totalPrize += bonusAmt;
-            const tieLabel = slot.tieCount > 1 ? ` (÷${slot.tieCount})` : '';
-            prizeTags.push(`<span class="player-prize-tag">${payout.place}${tieLabel} <strong>${fmtMoney(bonusAmt)}</strong></span>`);
-          }
-        });
-      }
-    }
-    const prizeRow = prizeTags.length > 0
-      ? `<div class="player-prizes">${prizeTags.join('')}</div>`
-      : '';
-    const displayPayout = totalPrize > 0 ? totalPrize : myPayout;
-
     html += `
       <div class="player-card ${posClass}" style="animation-delay:${i * 0.04}s">
         <div class="pos-badge ${badgeClass}">${posDisplay}</div>
@@ -1610,10 +1332,9 @@ function renderMyTeam() {
             <span class="player-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}${thru && thru !== '-' ? (thru === 'F' ? ' · F' : ' · Thru ' + thru) : ''}</span>
             ${splitLabel}
           </div>
-          ${prizeRow}
         </div>
         <div class="player-right">
-          <div class="proj-win ${displayPayout === 0 ? 'zero' : ''}">${displayPayout > 0 ? fmtMoney(displayPayout) : '—'}</div>
+          <div class="proj-win ${myPayout === 0 ? 'zero' : ''}">${myPayout > 0 ? fmtMoney(myPayout) : '—'}</div>
           <span class="cost-label">paid ${fmtMoney(myPaid)}</span>
         </div>
       </div>`;
@@ -1858,8 +1579,19 @@ function renderPrizes() {
     }
   }
 
-  // Round leaders (uses manual overrides + ESPN auto-detect)
-  const rlPrizes = computeRoundLeaders();
+  // Per-round leader helper: rIdx=0 for R1, 1 for R2, etc.
+  const getRndLeader = (rIdx, wantHigh) => {
+    let leader = null, best = wantHigh ? -Infinity : Infinity;
+    ALL_PICKS.forEach(pick => {
+      if (pick.inField || canonicalName(pick.name) === 'Field') return;
+      const s = getScore(pick.name);
+      if (!s || s.status === 'cut' || s.status === 'wd') return;
+      const rs = Array.isArray(s.roundScores) && s.roundScores[rIdx] !== undefined ? s.roundScores[rIdx] : null;
+      if (rs === null) return;
+      if (wantHigh ? rs > best : rs < best) { best = rs; leader = { pick, score: s, roundScore: rs }; }
+    });
+    return leader;
+  };
 
   // Compute Low Amateur leader
   const amateurPicks = ALL_PICKS.filter(p =>
@@ -1872,26 +1604,11 @@ function renderPrizes() {
     if (s.score < lowAmScore) { lowAmScore = s.score; lowAm = { pick, score: s }; }
   });
 
-  // Helper: build display for a round slot (handles ties with "/" separator)
-  const slotDisp = (slot, rIdx) => {
-    if (!slot) return null;
-    const names = slot.leaders.join(' / ');
-    const owners = [...new Set(slot.leaders.map(n => {
-      const p = ALL_PICKS.find(pk => !pk.inField && canonicalName(pk.name) === n);
-      return p ? shortName(p.owner) : '—';
-    }))].join(' / ');
-    const firstS = getScore(slot.leaders[0]);
-    const rs = firstS && rIdx !== undefined ? firstS.roundScores?.[rIdx] : undefined;
-    const scoreStr = rs !== undefined ? ' ' + fmtScore(rs) : '';
-    return { names, owners, scoreStr };
-  };
-
   // Bonus payouts (round prizes, amateur) — simpler cards
   html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
   bonusPayouts.forEach((payout) => {
     const payoutAmt = Math.round(payout.pct * TOTAL_POT);
-    let slot = null;
-    let rIdx = undefined;
+    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '', leader = null;
 
     const roundMatch = payout.place.match(/(\d+)/);
     const roundNum = roundMatch ? parseInt(roundMatch[1]) : null;
@@ -1899,18 +1616,23 @@ function renderPrizes() {
     const isLowAmateur = payout.place === 'Low Amateur';
 
     if (hasScores) {
-      if (isLowAmateur) {
-        if (rlPrizes.lowAm) slot = rlPrizes.lowAm;
-        else if (lowAm) slot = { leaders: [canonicalName(lowAm.pick.name)], tieCount: 1 };
+      if (isLowAmateur && lowAm) {
+        leader = lowAm;
+        bonusPlayer = canonicalName(lowAm.pick.name);
+        bonusOwner = shortName(lowAm.pick.owner);
+        bonusScore = ' ' + fmtScore(lowAm.score.score);
       } else if (roundNum !== null) {
-        rIdx = roundNum - 1;
-        slot = isHigh ? rlPrizes.rounds[rIdx]?.high : rlPrizes.rounds[rIdx]?.low;
+        const rLeader = getRndLeader(roundNum - 1, isHigh);
+        if (rLeader) {
+          leader = rLeader;
+          bonusPlayer = canonicalName(rLeader.pick.name);
+          bonusOwner = shortName(rLeader.pick.owner);
+          bonusScore = ' ' + fmtScore(rLeader.roundScore);
+        }
       }
     }
 
-    const disp = slot ? slotDisp(slot, rIdx) : null;
-    const perEach = slot?.tieCount > 1 ? ` · ÷${slot.tieCount} = ${fmtMoney(Math.round(payoutAmt / slot.tieCount))} ea.` : '';
-    const isLive = hasScores && disp !== null;
+    const isLive = hasScores && leader !== null;
     html += `
       <div class="prize-card">
         <div class="prize-top-row">
@@ -1922,8 +1644,8 @@ function renderPrizes() {
         </div>
         <div class="prize-bottom-row">
           <div class="prize-cell" style="grid-column:span 2">
-            <div class="prize-cell-label">${isLive ? 'Winner' : 'Determined per round'}</div>
-            <div class="prize-cell-value ${isLive ? 'highlight' : 'dim'}">${isLive ? disp.names + disp.scoreStr + ' · ' + disp.owners + perEach : 'Updates during play'}</div>
+            <div class="prize-cell-label">${isLive ? 'Current Leader' : 'Determined per round'}</div>
+            <div class="prize-cell-value ${isLive ? 'highlight' : 'dim'}">${isLive ? bonusPlayer + bonusScore + ' · ' + bonusOwner : 'Updates during play'}</div>
           </div>
         </div>
       </div>`;
@@ -1944,71 +1666,11 @@ function renderField() {
     }
   });
 
-  const all = Object.values(playerMap);
-  // Detect cut by status='cut' OR thru='CUT' (belt-and-suspenders in case status detection misses)
-  const isCutPlayer = p => p._score?.status === 'cut' || p._score?.thru === 'CUT';
-  const active = all.filter(p => !p._score || !isCutPlayer(p))
-    .sort((a, b) => (a._score?.position || 999) - (b._score?.position || 999));
-  const cut = all.filter(p => isCutPlayer(p))
-    .sort((a, b) => (a._score?.score ?? 999) - (b._score?.score ?? 999));
-
-  // Helper: round stroke count from roundScores (to-par → strokes by adding par 72)
-  const rndStroke = (rs, rIdx) => {
-    const v = rs?.[rIdx];
-    return v !== undefined ? v + 72 : null;
-  };
-
-  const playerRow = (pick, i, isCut) => {
-    const score = pick._score;
-    const scoreVal = score ? score.score : null;
-    const todayScore = score ? score.todayScore : null;
-    const thru = score ? score.thru : null;
-    const rs = score?.roundScores;
-
-    const posDisplay = isCut ? 'MC' : (score?.posStr || '—');
-    const totDisplay = isCut ? 'CUT' : fmtScore(scoreVal);
-    const totClass   = isCut ? 'dim' : scoreColor(scoreVal);
-    const thruDisplay = isCut ? '-' : (thru && thru !== '-' ? thru : '—');
-    // TODAY: dash if not teed off (no todayScore and not finished/in-progress)
-    const todayDisplay = (!isCut && todayScore !== null) ? fmtScore(todayScore) : '-';
-    const todayClass   = todayScore !== null ? scoreColor(todayScore) : '';
-
-    const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
-    const isMe = pick._owners.includes(selectedTeam);
-
-    // Detect mid-round: thru is a bare hole number or generic in-progress marker
-    // In-progress rounds go in TODAY column only — R columns show finalized rounds only
-    const thruStr = String(score?.thru ?? '-');
-    const midRound = /^\*?\d{1,2}\*?$/.test(thruStr) || thruStr === '*';
-    const rsLen = Array.isArray(rs) ? rs.length : 0;
-    // If mid-round, the last linescore entry (rsLen-1) is in-progress — hide it from R column
-    const inProgressIdx = midRound ? rsLen - 1 : -1;
-
-    const r1 = (inProgressIdx === 0) ? null : rndStroke(rs, 0);
-    const r2 = (isCut || inProgressIdx === 1) ? null : rndStroke(rs, 1);
-    const r3 = (isCut || inProgressIdx === 2) ? null : rndStroke(rs, 2);
-    const r4 = (isCut || inProgressIdx === 3) ? null : rndStroke(rs, 3);
-
-    // Total strokes: sum finalized round strokes directly (avoids contamination from in-progress round)
-    const completedRounds = [r1, r2, r3, r4].filter(v => v !== null);
-    const totStrokes = completedRounds.length > 0 ? completedRounds.reduce((a, b) => a + b, 0) : null;
-
-    const dash = '--';
-    return `
-      <div class="field-player ${isCut ? 'is-cut' : ''}" style="animation-delay:${Math.min(i,30)*0.02}s">
-        <div class="field-pos">${posDisplay}</div>
-        <div class="field-name">${pick._canonName}</div>
-        <div class="field-score ${totClass}">${totDisplay}</div>
-        <div class="field-score" style="font-weight:400;color:var(--text-dim)">${thruDisplay}</div>
-        <div class="field-score ${todayClass}">${todayDisplay}</div>
-        <div class="field-owner ${isMe ? 'mine' : ''}">${ownerDisplay}</div>
-        <div class="field-rnd">${r1 !== null ? r1 : dash}</div>
-        <div class="field-rnd">${r2 !== null ? r2 : dash}</div>
-        <div class="field-rnd">${r3 !== null ? r3 : dash}</div>
-        <div class="field-rnd">${r4 !== null ? r4 : dash}</div>
-        <div class="field-rnd" style="font-weight:600;color:var(--cream)">${totStrokes !== null ? totStrokes : dash}</div>
-      </div>`;
-  };
+  const sorted = Object.values(playerMap).sort((a, b) => {
+    const pa = a._score ? (a._score.position || 999) : 999;
+    const pb = b._score ? (b._score.position || 999) : 999;
+    return pa - pb;
+  });
 
   let html = `
     <div class="field-header">
@@ -2017,23 +1679,30 @@ function renderField() {
       <div style="text-align:center">TOT</div>
       <div style="text-align:center">THRU</div>
       <div style="text-align:center">TODAY</div>
-      <div style="text-align:center">OWNER</div>
-      <div style="text-align:center">R1</div>
-      <div style="text-align:center">R2</div>
-      <div style="text-align:center">R3</div>
-      <div style="text-align:center">R4</div>
-      <div style="text-align:center">TOT</div>
+      <div style="text-align:right">OWNER</div>
     </div>`;
-
-  active.forEach((p, i) => { html += playerRow(p, i, false); });
-
-  if (cut.length > 0) {
-    // Estimate cut line from highest active player's score (or lowest cut player's score)
-    const cutScore = cut[0]._score?.score;
-    const cutLine = cutScore !== null && cutScore !== undefined ? ` at ${fmtScore(cutScore)}` : '';
-    html += `<div class="cut-separator">The following players missed the cut${cutLine}</div>`;
-    cut.forEach((p, i) => { html += playerRow(p, i + active.length, true); });
-  }
+  sorted.forEach((pick, i) => {
+    const score = pick._score;
+    const scoreVal = score ? score.score : null;
+    const todayScore = score ? score.todayScore : null;
+    const thru = score ? score.thru : null;
+    const status = score ? score.status : 'active';
+    const isMe = pick._owners.includes(selectedTeam);
+    const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || '—');
+    const thruDisplay = thru && thru !== '-' ? thru : '—';
+    const todayDisplay = (todayScore && todayScore !== '-') ? todayScore : '—';
+    const todayNum = todayDisplay === '—' ? 0 : (todayDisplay === 'E' ? 0 : parseFloat(todayDisplay));
+    const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
+    html += `
+      <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
+        <div class="field-pos">${posDisplay}</div>
+        <div class="field-name">${pick._canonName}</div>
+        <div class="field-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}</div>
+        <div class="field-score" style="color:var(--text-dim);font-weight:400">${thruDisplay}</div>
+        <div class="field-score ${scoreColor(todayNum)}">${todayDisplay}</div>
+        <div class="field-owner ${isMe ? 'mine' : ''}">${ownerDisplay}</div>
+      </div>`;
+  });
 
   document.getElementById('field-list').innerHTML = html;
   if (lastFetch) document.getElementById('field-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
