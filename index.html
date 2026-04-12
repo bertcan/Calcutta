@@ -1490,8 +1490,8 @@ function renderPrizes() {
           const ownership = pick.splitPct ? (1 - pick.splitPct) : 1.0;
           playerName = canonicalName(pick.name);
           ownerName = shortName(pick.owner) + (pick.splitPct ? ` (${Math.round(ownership*100)}%)` : '');
-          invested = TEAM_SPEND[pick.owner] || 0;
-          multiple = fmtMultiple(effectiveAmt * ownership, invested);
+          invested = pick.price || 0;
+          multiple = fmtMultiple(effectiveAmt, invested);
           scoreDisplay = score.score !== null && score.score !== undefined ? ' ' + fmtScore(score.score) : '';
         } else {
           playerName = entries.map(e => canonicalName(e.pick.name) + ' ' + fmtScore(e.score.score)).join('<br>');
@@ -1534,7 +1534,7 @@ function renderPrizes() {
               <div class="prize-cell-value">${ownerName !== '—' ? ownerName : hasScores ? '—' : 'No scores'}</div>
             </div>
             <div class="prize-cell">
-              <div class="prize-cell-label">Team Invested</div>
+              <div class="prize-cell-label">Purchased For</div>
               <div class="prize-cell-value">${invested > 0 ? fmtMoney(invested) : '—'}</div>
             </div>
             <div class="prize-cell">
@@ -1570,7 +1570,7 @@ function renderPrizes() {
               <div class="prize-cell-value">${ownerName !== '—' ? ownerName : hasScores ? '—' : 'No scores'}</div>
             </div>
             <div class="prize-cell">
-              <div class="prize-cell-label">Team Invested</div>
+              <div class="prize-cell-label">Purchased For</div>
               <div class="prize-cell-value">${invested > 0 ? fmtMoney(invested) : '—'}</div>
             </div>
             <div class="prize-cell">
