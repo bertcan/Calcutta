@@ -1057,7 +1057,7 @@ function computeTeamStats(teamName) {
     }
     proj += projectedPayout(pos, 87, tieCount) * ownership;
 
-    // Bonus prize contributions (round lows/highs, low amateur)
+    // Bonus prize contributions (round lows/highs, low amateur) — split by tie count
     if (rl && score && score.status === 'active') {
       const cName = canonicalName(pick.name);
       PAYOUTS.slice(8).forEach(payout => {
@@ -1065,12 +1065,13 @@ function computeTeamStats(teamName) {
         const rNum = roundMatch ? parseInt(roundMatch[1]) : null;
         const isHigh = payout.place.toLowerCase().includes('high');
         const isLowAm = payout.place === 'Low Amateur';
-        if (isLowAm && rl.lowAm === cName) {
-          proj += payout.pct * TOTAL_POT * ownership;
+        if (isLowAm && rl.lowAm?.leaders.includes(cName)) {
+          proj += (payout.pct * TOTAL_POT / rl.lowAm.tieCount) * ownership;
         } else if (rNum !== null) {
           const roundData = rl.rounds[rNum - 1];
-          if (roundData && (isHigh ? roundData.high === cName : roundData.low === cName)) {
-            proj += payout.pct * TOTAL_POT * ownership;
+          const slot = isHigh ? roundData?.high : roundData?.low;
+          if (slot?.leaders.includes(cName)) {
+            proj += (payout.pct * TOTAL_POT / slot.tieCount) * ownership;
           }
         }
       });
@@ -1141,29 +1142,38 @@ function ordinal(n) {
   }
 }
 
-// Compute which pick name (canonical) leads each round low/high and low amateur
+// Compute which pick names lead each round low/high (with tie counts) and low amateur
+// Returns { rounds: [{ low: {leaders, tieCount}, high: {leaders, tieCount} }, ...], lowAm: {leader, tieCount} }
 function computeRoundLeaders() {
   const rounds = [0, 1, 2, 3].map(rIdx => {
-    let lowLeader = null, lowBest = Infinity, highLeader = null, highBest = -Infinity;
+    let lowBest = Infinity, highBest = -Infinity;
+    let lowLeaders = [], highLeaders = [];
     ALL_PICKS.forEach(pick => {
       if (pick.inField || canonicalName(pick.name) === 'Field') return;
       const s = getScore(pick.name);
       if (!s || s.status === 'cut' || s.status === 'wd') return;
       const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
       if (rs === undefined) return;
-      if (rs < lowBest)  { lowBest  = rs; lowLeader  = canonicalName(pick.name); }
-      if (rs > highBest) { highBest = rs; highLeader = canonicalName(pick.name); }
+      if (rs < lowBest)       { lowBest = rs;  lowLeaders  = [canonicalName(pick.name)]; }
+      else if (rs === lowBest) { lowLeaders.push(canonicalName(pick.name)); }
+      if (rs > highBest)       { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
+      else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
     });
-    return { low: lowLeader, high: highLeader };
+    return {
+      low:  lowLeaders.length  > 0 ? { leaders: lowLeaders,  tieCount: lowLeaders.length  } : null,
+      high: highLeaders.length > 0 ? { leaders: highLeaders, tieCount: highLeaders.length } : null,
+    };
   });
-  let lowAm = null, lowAmScore = Infinity;
+  let lowAm = null, lowAmScore = Infinity, lowAmLeaders = [];
   ALL_PICKS.forEach(pick => {
     const isAm = pick.name.includes('(a)') || canonicalName(pick.name) === 'Casey Jarvis';
     if (!isAm) return;
     const s = getScore(pick.name);
     if (!s || s.status === 'cut' || s.status === 'wd') return;
-    if (s.score < lowAmScore) { lowAmScore = s.score; lowAm = canonicalName(pick.name); }
+    if (s.score < lowAmScore)       { lowAmScore = s.score; lowAmLeaders = [canonicalName(pick.name)]; }
+    else if (s.score === lowAmScore) { lowAmLeaders.push(canonicalName(pick.name)); }
   });
+  lowAm = lowAmLeaders.length > 0 ? { leaders: lowAmLeaders, tieCount: lowAmLeaders.length } : null;
   return { rounds, lowAm };
 }
 
@@ -1449,17 +1459,20 @@ function renderMyTeam() {
     const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
     const splitLabel = pick.splitPct ? `<span class="split-tag">${Math.round(ownership * 100)}% share</span>` : '';
 
-    // Build prize breakdown tags
+    // Build prize breakdown tags and total prize amount
     const prizeTags = [];
+    let totalPrize = 0;
     if (hasScores && score && status === 'active') {
       // Finish position prize
       if (pos && basePayout > 0) {
+        const posAmt = Math.round(basePayout * ownership);
+        totalPrize += posAmt;
         const posLabel = tieCount > 1
           ? `T${pos} (${ordinal(pos)}–${ordinal(pos + tieCount - 1)} ÷${tieCount})`
           : `${ordinal(pos)} Place`;
-        prizeTags.push(`<span class="player-prize-tag">${posLabel} <strong>${fmtMoney(Math.round(basePayout * ownership))}</strong></span>`);
+        prizeTags.push(`<span class="player-prize-tag">${posLabel} <strong>${fmtMoney(posAmt)}</strong></span>`);
       }
-      // Bonus prizes (round lows/highs, low amateur)
+      // Bonus prizes (round lows/highs, low amateur) — split by tie count
       if (rl) {
         const cName = canonicalName(pick.name);
         PAYOUTS.slice(8).forEach(payout => {
@@ -1467,16 +1480,14 @@ function renderMyTeam() {
           const rNum = roundMatch ? parseInt(roundMatch[1]) : null;
           const isHigh = payout.place.toLowerCase().includes('high');
           const isLowAm = payout.place === 'Low Amateur';
-          let isLeader = false;
-          if (isLowAm && rl.lowAm === cName) {
-            isLeader = true;
-          } else if (rNum !== null) {
-            const roundData = rl.rounds[rNum - 1];
-            if (roundData && (isHigh ? roundData.high === cName : roundData.low === cName)) isLeader = true;
-          }
-          if (isLeader) {
-            const bonusAmt = Math.round(payout.pct * TOTAL_POT * ownership);
-            prizeTags.push(`<span class="player-prize-tag">${payout.place} <strong>${fmtMoney(bonusAmt)}</strong></span>`);
+          let slot = null;
+          if (isLowAm) { slot = rl.lowAm; }
+          else if (rNum !== null) { slot = isHigh ? rl.rounds[rNum-1]?.high : rl.rounds[rNum-1]?.low; }
+          if (slot?.leaders.includes(cName)) {
+            const bonusAmt = Math.round((payout.pct * TOTAL_POT / slot.tieCount) * ownership);
+            totalPrize += bonusAmt;
+            const tieLabel = slot.tieCount > 1 ? ` (÷${slot.tieCount})` : '';
+            prizeTags.push(`<span class="player-prize-tag">${payout.place}${tieLabel} <strong>${fmtMoney(bonusAmt)}</strong></span>`);
           }
         });
       }
@@ -1484,6 +1495,7 @@ function renderMyTeam() {
     const prizeRow = prizeTags.length > 0
       ? `<div class="player-prizes">${prizeTags.join('')}</div>`
       : '';
+    const displayPayout = totalPrize > 0 ? totalPrize : myPayout;
 
     html += `
       <div class="player-card ${posClass}" style="animation-delay:${i * 0.04}s">
@@ -1497,7 +1509,7 @@ function renderMyTeam() {
           ${prizeRow}
         </div>
         <div class="player-right">
-          <div class="proj-win ${myPayout === 0 ? 'zero' : ''}">${myPayout > 0 ? fmtMoney(myPayout) : '—'}</div>
+          <div class="proj-win ${displayPayout === 0 ? 'zero' : ''}">${displayPayout > 0 ? fmtMoney(displayPayout) : '—'}</div>
           <span class="cost-label">paid ${fmtMoney(myPaid)}</span>
         </div>
       </div>`;

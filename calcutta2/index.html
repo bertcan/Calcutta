@@ -1056,7 +1056,7 @@ function computeTeamStats(teamName) {
     }
     proj += projectedPayout(pos, 87, tieCount) * ownership;
 
-    // Bonus prize contributions (round lows/highs)
+    // Bonus prize contributions (round lows/highs) — split by tie count
     if (rl && score && score.status === 'active') {
       const cName = canonicalName(pick.name);
       PAYOUTS.slice(7).forEach(payout => {
@@ -1064,9 +1064,9 @@ function computeTeamStats(teamName) {
         const rNum = roundMatch ? parseInt(roundMatch[1]) : null;
         const isHigh = payout.place.toLowerCase().includes('high');
         if (rNum !== null) {
-          const roundData = rl.rounds[rNum - 1];
-          if (roundData && (isHigh ? roundData.high === cName : roundData.low === cName)) {
-            proj += payout.pct * TOTAL_POT * ownership;
+          const slot = isHigh ? rl.rounds[rNum-1]?.high : rl.rounds[rNum-1]?.low;
+          if (slot?.leaders.includes(cName)) {
+            proj += (payout.pct * TOTAL_POT / slot.tieCount) * ownership;
           }
         }
       });
@@ -1118,20 +1118,26 @@ function ordinal(n) {
   }
 }
 
-// Compute which pick name (canonical) leads each round low/high
+// Compute which pick names lead each round low/high (with tie counts)
 function computeRoundLeaders() {
   const rounds = [0, 1, 2, 3].map(rIdx => {
-    let lowLeader = null, lowBest = Infinity, highLeader = null, highBest = -Infinity;
+    let lowBest = Infinity, highBest = -Infinity;
+    let lowLeaders = [], highLeaders = [];
     ALL_PICKS.forEach(pick => {
       if (pick.inField || canonicalName(pick.name) === 'Field') return;
       const s = getScore(pick.name);
       if (!s || s.status === 'cut' || s.status === 'wd') return;
       const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
       if (rs === undefined) return;
-      if (rs < lowBest)  { lowBest  = rs; lowLeader  = canonicalName(pick.name); }
-      if (rs > highBest) { highBest = rs; highLeader = canonicalName(pick.name); }
+      if (rs < lowBest)        { lowBest  = rs; lowLeaders  = [canonicalName(pick.name)]; }
+      else if (rs === lowBest)  { lowLeaders.push(canonicalName(pick.name)); }
+      if (rs > highBest)        { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
+      else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
     });
-    return { low: lowLeader, high: highLeader };
+    return {
+      low:  lowLeaders.length  > 0 ? { leaders: lowLeaders,  tieCount: lowLeaders.length  } : null,
+      high: highLeaders.length > 0 ? { leaders: highLeaders, tieCount: highLeaders.length } : null,
+    };
   });
   return { rounds, lowAm: null };
 }
@@ -1430,14 +1436,17 @@ function renderMyTeam() {
     const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
     const splitLabel = pick.splitPct ? `<span class="split-tag">${Math.round(ownership * 100)}% share</span>` : '';
 
-    // Build prize breakdown tags
+    // Build prize breakdown tags and total prize amount
     const prizeTags = [];
+    let totalPrize = 0;
     if (hasScores && score && status === 'active') {
       if (pos && basePayout > 0) {
+        const posAmt = Math.round(basePayout * ownership);
+        totalPrize += posAmt;
         const posLabel = tieCount > 1
           ? `T${pos} (${ordinal(pos)}–${ordinal(pos + tieCount - 1)} ÷${tieCount})`
           : `${ordinal(pos)} Place`;
-        prizeTags.push(`<span class="player-prize-tag">${posLabel} <strong>${fmtMoney(Math.round(basePayout * ownership))}</strong></span>`);
+        prizeTags.push(`<span class="player-prize-tag">${posLabel} <strong>${fmtMoney(posAmt)}</strong></span>`);
       }
       if (rl) {
         const cName = canonicalName(pick.name);
@@ -1446,10 +1455,12 @@ function renderMyTeam() {
           const rNum = roundMatch ? parseInt(roundMatch[1]) : null;
           const isHigh = payout.place.toLowerCase().includes('high');
           if (rNum !== null) {
-            const roundData = rl.rounds[rNum - 1];
-            if (roundData && (isHigh ? roundData.high === cName : roundData.low === cName)) {
-              const bonusAmt = Math.round(payout.pct * TOTAL_POT * ownership);
-              prizeTags.push(`<span class="player-prize-tag">${payout.place} <strong>${fmtMoney(bonusAmt)}</strong></span>`);
+            const slot = isHigh ? rl.rounds[rNum-1]?.high : rl.rounds[rNum-1]?.low;
+            if (slot?.leaders.includes(cName)) {
+              const bonusAmt = Math.round((payout.pct * TOTAL_POT / slot.tieCount) * ownership);
+              totalPrize += bonusAmt;
+              const tieLabel = slot.tieCount > 1 ? ` (÷${slot.tieCount})` : '';
+              prizeTags.push(`<span class="player-prize-tag">${payout.place}${tieLabel} <strong>${fmtMoney(bonusAmt)}</strong></span>`);
             }
           }
         });
@@ -1458,6 +1469,7 @@ function renderMyTeam() {
     const prizeRow = prizeTags.length > 0
       ? `<div class="player-prizes">${prizeTags.join('')}</div>`
       : '';
+    const displayPayout = totalPrize > 0 ? totalPrize : myPayout;
 
     html += `
       <div class="player-card ${posClass}" style="animation-delay:${i * 0.04}s">
@@ -1471,7 +1483,7 @@ function renderMyTeam() {
           ${prizeRow}
         </div>
         <div class="player-right">
-          <div class="proj-win ${myPayout === 0 ? 'zero' : ''}">${myPayout > 0 ? fmtMoney(myPayout) : '—'}</div>
+          <div class="proj-win ${displayPayout === 0 ? 'zero' : ''}">${displayPayout > 0 ? fmtMoney(displayPayout) : '—'}</div>
           <span class="cost-label">paid ${fmtMoney(myPaid)}</span>
         </div>
       </div>`;
