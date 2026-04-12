@@ -1676,11 +1676,11 @@ function renderPrizes() {
     return Object.values(playerMap);
   };
 
-  // Compute Low Amateur leader.
-  // Priority 1: amateur who made the cut with best (lowest) leaderboard position.
-  // Priority 2: if none made the cut, amateur with best combined R1+R2 to-par score.
+  // Compute Low Amateur leaders (array to handle ties).
+  // Priority 1: amateurs who made the cut — find best position, collect all tied at that position.
+  // Priority 2: if none made the cut — find best cumulative score, collect all tied at that score.
   const amateurPicks = ALL_PICKS.filter(p => p.amateur);
-  let lowAm = null, lowAmFallback = false;
+  let lowAmLeaders = [], lowAmFallback = false;
 
   const amadsMadeCut = amateurPicks.filter(p => {
     const s = getScore(p.name);
@@ -1688,19 +1688,22 @@ function renderPrizes() {
   });
 
   if (amadsMadeCut.length > 0) {
+    let bestPos = Infinity;
     amadsMadeCut.forEach(pick => {
       const s = getScore(pick.name);
-      if (!lowAm || (s.position || 999) < (lowAm.score.position || 999)) lowAm = { pick, score: s };
+      const pos = s.position || 999;
+      if (pos < bestPos) { bestPos = pos; lowAmLeaders = [{ pick, score: s }]; }
+      else if (pos === bestPos) { lowAmLeaders.push({ pick, score: s }); }
     });
   } else {
-    // Fallback: best cumulative score (R1+R2 combined to-par) among all amateurs
-    // s.score is the cumulative to-par, which for cut players equals R1+R2
+    // Fallback: best cumulative score (R1+R2 to-par) among all amateurs
     let bestCutScore = Infinity;
     amateurPicks.forEach(pick => {
       const s = getScore(pick.name);
       if (!s || s.status === 'wd') return;
       const sc = s.score !== null && s.score !== undefined ? s.score : Infinity;
-      if (sc < bestCutScore) { bestCutScore = sc; lowAm = { pick, score: s, r1r2Total: sc }; lowAmFallback = true; }
+      if (sc < bestCutScore) { bestCutScore = sc; lowAmLeaders = [{ pick, score: s }]; lowAmFallback = true; }
+      else if (sc === bestCutScore) { lowAmLeaders.push({ pick, score: s }); }
     });
   }
 
@@ -1716,13 +1719,13 @@ function renderPrizes() {
     const isLowAmateur = payout.place === 'Low Amateur';
 
     if (hasScores) {
-      if (isLowAmateur && lowAm) {
-        leader = lowAm;
-        bonusPlayer = canonicalName(lowAm.pick.name);
-        bonusOwner = shortName(lowAm.pick.owner);
-        bonusScore = lowAmFallback
-          ? ' ' + fmtScore(lowAm.r1r2Total) + ' (R1+R2, all cut)'
-          : ' ' + fmtScore(lowAm.score.score);
+      if (isLowAmateur && lowAmLeaders.length > 0) {
+        leader = lowAmLeaders[0];
+        tieCount = lowAmLeaders.length;
+        bonusPlayer = lowAmLeaders.map(l => canonicalName(l.pick.name)).join(' / ');
+        bonusOwner = lowAmLeaders.map(l => shortName(l.pick.owner)).join(' / ');
+        const amScore = lowAmLeaders[0].score.score;
+        bonusScore = ' ' + fmtScore(amScore) + (lowAmFallback ? ' (R1+R2, all cut)' : '') + (tieCount > 1 ? ' (tied)' : '');
       } else if (roundNum !== null) {
         const rLeaders = getRndLeader(roundNum - 1, isHigh);
         if (rLeaders.length > 0) {
