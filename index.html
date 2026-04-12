@@ -1157,126 +1157,68 @@ async function fetchLiveScores() {
 
     if (!event) throw new Error(`No golf event found. Events: ${(data.events||[]).map(e=>e.name).join(', ')}`);
 
-    const eventComps = event.competitions || [{}];
-    const competitors = eventComps[eventComps.length - 1].competitors || [];
+    const competition = (event.competitions || [{}]).at(-1);
+    const tournamentRound = competition?.status?.period || 1;
+    const competitors = competition.competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
-
-
-    // Pre-count position occurrences across ALL competitors to detect ties
-    const positionCounts = {};
-    competitors.forEach(comp => {
-      const pd = comp.status?.position?.displayName || comp.position?.displayName || '';
-      const p = parseInt(pd.replace(/^T/, ''));
-      if (p && p < 999) positionCounts[p] = (positionCounts[p] || 0) + 1;
-    });
-
-    // Debug: log first few competitors' raw status data
-    competitors.slice(0, 3).forEach((c0, idx) => {
-      console.log(`[ESPN debug #${idx}] ${c0.athlete?.displayName}`,
-        '| type.state:', c0.status?.type?.state,
-        '| type.shortDetail:', c0.status?.type?.shortDetail,
-        '| type.detail:', c0.status?.type?.detail,
-        '| status.state:', c0.status?.state,
-        '| status.displayValue:', c0.status?.displayValue,
-        '| status.thru:', c0.status?.thru,
-        '| status.period:', c0.status?.period,
-        '| score:', c0.score,
-        '| linescores:', JSON.stringify(c0.linescores));
-    });
 
     const newScores = {};
     competitors.forEach(comp => {
       const name = comp.athlete?.displayName;
       if (!name) return;
 
-      // Score to par — comp.score is a direct string like "-4", "E", "+2"
-      const toParStr = (typeof comp.score === 'string' ? comp.score : comp.score?.displayValue) || 'E';
-      let score = 0;
-      if (toParStr && toParStr !== 'E' && toParStr !== '--') {
-        score = parseInt(toParStr.replace('+', '')) || 0;
-      }
-
-      // Position — try known ESPN locations
-      const statsArr = Array.isArray(comp.statistics) ? comp.statistics : [];
-      const stats = Object.fromEntries(statsArr.map(s => [s.name, s.displayValue]));
-      const posDisplay = comp.status?.position?.displayName
-        || comp.position?.displayName
-        || stats.position || stats.rank || '';
-      const realPos = parseInt(posDisplay.replace(/^T/, ''));
-      // For sorting: use real position, fall back to comp.order so list stays ordered
-      const position = realPos || comp.order || 999;
-      // For display: only show if we have a real leaderboard position (not just sort order)
-      const posStr = realPos
-        ? ((positionCounts[realPos] || 1) > 1 ? 'T' + realPos : String(realPos))
-        : '';
-
-      // Thru — check multiple ESPN field paths; API version varies
-      const detail = comp.status?.type?.shortDetail
-                  || comp.status?.displayValue
-                  || comp.status?.shortDetail
-                  || comp.status?.type?.detail
-                  || '';
-      const statusState = comp.status?.type?.state || comp.status?.state || '';
-      const thruDirect = comp.status?.thru ?? comp.status?.type?.thru;
-      let thru = '-';
-      if (statusState === 'post') thru = 'F';
-      else if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
-      else if (detail.toUpperCase() === 'CUT' || detail.toUpperCase().includes('WD')) thru = detail.toUpperCase();
-      else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
-      else if (/^\*?\s*(\d+)\s*\*?$/.test(detail.trim())) thru = detail.trim().replace(/\*/g, '').trim();
-      else if (typeof thruDirect === 'number' && thruDirect > 0) thru = String(thruDirect);
-      else if (/\d{1,2}:\d{2}\s*(AM|PM)/i.test(detail)) thru = detail.match(/\d{1,2}:\d{2}\s*(AM|PM)/i)[0];
-      else if (statusState === 'in') thru = '*';
-
-      // Today's round score — for R2+ derive from cumulative minus prior completed rounds
       const linescores = comp.linescores || [];
 
-      // ESPN gives every player a placeholder linescore (value=0, displayValue="-") for the
-      // current round. Active players: linescores.length === tournamentRound.
-      // Cut players are one behind: linescores.length < tournamentRound. This is the reliable signal.
+      // Cut detection: active players always have a placeholder linescore for the current round,
+      // so linescores.length === tournamentRound. Cut players are one behind.
       const isCut = linescores.length > 0 && linescores.length < tournamentRound;
+      const status = isCut ? 'cut' : 'active';
 
-      // Per-round scores (index 0=R1, 1=R2, etc.) — skip placeholder entries (value=0)
-      const roundScores = [];
-      linescores.forEach((ls, idx) => {
-        if (ls.value === 0) return; // placeholder for current/unplayed round — not a real score
-        const lsv = parseFloat(ls.value ?? ls.displayValue ?? '');
-        if (!isNaN(lsv)) roundScores[idx] = lsv > 30 ? (lsv - 72) : lsv;
-      });
+      // Total score (to-par number for tie grouping and color)
+      const toParStr = comp.score || 'E';
+      const score = toParStr === 'E' ? 0 : (parseInt(toParStr.replace('+', '')) || 0);
 
-      // Today's score is directly on the current round's linescore
-      const todayScore = linescores[tournamentRound - 1]?.displayValue ?? null;
+      // Current round linescore (placeholder if not yet played, real if in progress or complete)
+      const currentLs = linescores[tournamentRound - 1];
 
-      // Status — primary: linescore count. Secondary: ESPN status fields (mostly undefined but kept for future)
-      const sName    = (comp.status?.type?.name       || '').toUpperCase();
-      const sDetail  = (comp.status?.type?.shortDetail || '').toUpperCase();
-      const sDisp    = (comp.status?.displayValue      || '').toUpperCase();
-      const detailUp = detail.toUpperCase();
-      const posDisp  = posDisplay.toUpperCase();
-      const scoreDisp = toParStr.toUpperCase();
-      const status = (
-        isCut ||
-        sName.includes('CUT') || sName.includes('MISSED') ||
-        sDetail === 'MC' || sDetail === 'MDF' || sDetail.includes('CUT') ||
-        sDisp === 'MC' || sDisp.includes('CUT') ||
-        detailUp === 'MC' || detailUp === 'CUT' || thru === 'CUT' ||
-        posDisp === 'MC' || posDisp === 'CUT' ||
-        scoreDisp === 'MC' || scoreDisp === 'CUT'
-      ) ? 'cut'
-        : (
-        sName.includes('WD') || sName.includes('WITHDRAWN') ||
-        sDetail === 'WD' || sDisp === 'WD' || thru === 'WD'
-      ) ? 'wd' : 'active';
+      // Today's score: only show when round has actual strokes (value > 0)
+      const todayScore = (currentLs && currentLs.value > 0) ? currentLs.displayValue : null;
 
-      newScores[name] = { name, position, posStr, score, todayScore, thru, status, roundScores };
+      // Thru: F when complete, hole number when in progress, tee time when not started, CUT if cut
+      let thru = '-';
+      if (isCut) {
+        thru = 'CUT';
+      } else if (currentLs) {
+        if (currentLs.value >= 50) {
+          thru = 'F';
+        } else if (currentLs.value > 0) {
+          // In progress — count holes from nested hole-by-hole linescores
+          thru = String(currentLs.linescores?.length || '*');
+        } else {
+          // Not started — show tee time from stats[6]
+          const teeRaw = currentLs.statistics?.categories?.[0]?.stats?.[6]?.displayValue;
+          if (teeRaw) {
+            const m = teeRaw.match(/(\d{1,2}):(\d{2}):\d{2}/);
+            if (m) {
+              const h = parseInt(m[1]), min = m[2];
+              thru = `${h % 12 || 12}:${min} ${h >= 12 ? 'PM' : 'AM'}`;
+            }
+          }
+        }
+      }
+
+      // Per-round to-par numbers (for round prize comparisons) — skip placeholders (value=0)
+      const roundScores = linescores.map(ls =>
+        ls.value > 0 ? (ls.displayValue === 'E' ? 0 : (parseInt(ls.displayValue.replace('+', '')) || 0)) : undefined
+      );
+
+      newScores[name] = { name, position: comp.order || 999, posStr: '', score, todayScore, thru, status, roundScores };
     });
 
-    // Cut detection is handled per-player above via isCut (linescores.length < tournamentRound).
-
-    // Re-compute posStr and position from score groupings, store tieCount for split payouts
-    const startedPlayers = Object.values(newScores).filter(p => p.status === 'active' && typeof p.score === 'number');
+    // Compute T-positions for active players grouped by score
+    const activePlayers = Object.values(newScores).filter(p => p.status === 'active');
     const scoreGroups = {};
-    startedPlayers.forEach(p => { (scoreGroups[p.score] = scoreGroups[p.score] || []).push(p); });
+    activePlayers.forEach(p => { (scoreGroups[p.score] = scoreGroups[p.score] || []).push(p); });
     let rank = 1;
     Object.keys(scoreGroups).map(Number).sort((a, b) => a - b).forEach(s => {
       const group = scoreGroups[s];
