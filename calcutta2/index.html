@@ -1222,6 +1222,14 @@ async function fetchLiveScores() {
 
       // Today's round score — for R2+ derive from cumulative minus prior completed rounds
       const linescores = comp.linescores || [];
+
+      // Per-round scores (index 0 = R1, 1 = R2, etc.) — to-par values
+      const roundScores = [];
+      linescores.forEach((ls, idx) => {
+        const lsv = parseFloat(ls.value ?? ls.displayValue ?? '');
+        if (!isNaN(lsv)) roundScores[idx] = lsv > 30 ? (lsv - 72) : lsv;
+      });
+
       let todayScore = null;
       if (statusState !== 'pre') {
         if (linescores.length >= 2) {
@@ -1245,7 +1253,7 @@ async function fetchLiveScores() {
                    : (sName.includes('WD') || sName.includes('WITHDRAWN') || sDetail === 'WD') ? 'wd'
                    : 'active';
 
-      newScores[name] = { name, position, posStr, score, todayScore, thru, status };
+      newScores[name] = { name, position, posStr, score, todayScore, thru, status, roundScores };
     });
 
     // Re-compute posStr and position from score groupings, store tieCount for split payouts
@@ -1603,40 +1611,41 @@ function renderPrizes() {
     }
   }
 
-  // Compute current low score leader (proxy for round low)
-  let roundLow = null, roundLowScore = Infinity;
-  // Compute current high score leader (proxy for high round)
-  let roundHigh = null, roundHighScore = -Infinity;
-  ALL_PICKS.forEach(pick => {
-    if (pick.inField || canonicalName(pick.name) === 'Field') return;
-    const s = getScore(pick.name);
-    if (!s || s.status === 'cut' || s.status === 'wd') return;
-    if (s.score < roundLowScore)  { roundLowScore  = s.score; roundLow  = { pick, score: s }; }
-    if (s.score > roundHighScore) { roundHighScore = s.score; roundHigh = { pick, score: s }; }
-  });
+  // Per-round leader helper: rIdx=0 for R1, 1 for R2, etc.
+  const getRndLeader = (rIdx, wantHigh) => {
+    let leader = null, best = wantHigh ? -Infinity : Infinity;
+    ALL_PICKS.forEach(pick => {
+      if (pick.inField || canonicalName(pick.name) === 'Field') return;
+      const s = getScore(pick.name);
+      if (!s || s.status === 'cut' || s.status === 'wd') return;
+      const rs = Array.isArray(s.roundScores) && s.roundScores[rIdx] !== undefined ? s.roundScores[rIdx] : null;
+      if (rs === null) return;
+      if (wantHigh ? rs > best : rs < best) { best = rs; leader = { pick, score: s, roundScore: rs }; }
+    });
+    return leader;
+  };
 
   // Bonus payouts (round lows + high rounds) — simpler cards
   html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
-  bonusPayouts.forEach((payout, bi) => {
+  bonusPayouts.forEach((payout) => {
     const payoutAmt = Math.round(payout.pct * TOTAL_POT);
-    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '';
-    const isHighRound = payout.place.toLowerCase().includes('high');
+    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '', leader = null;
 
-    if (hasScores) {
-      if (!isHighRound && roundLow) {
-        // Round Low — show current low score leader
-        bonusPlayer = canonicalName(roundLow.pick.name);
-        bonusOwner = shortName(roundLow.pick.owner);
-        bonusScore = ' ' + fmtScore(roundLow.score.score);
-      } else if (isHighRound && roundHigh) {
-        // High Round — show current high score leader
-        bonusPlayer = canonicalName(roundHigh.pick.name);
-        bonusOwner = shortName(roundHigh.pick.owner);
-        bonusScore = ' ' + fmtScore(roundHigh.score.score);
+    const roundMatch = payout.place.match(/(\d+)/);
+    const roundNum = roundMatch ? parseInt(roundMatch[1]) : null;
+    const isHigh = payout.place.toLowerCase().includes('high');
+
+    if (hasScores && roundNum !== null) {
+      const rLeader = getRndLeader(roundNum - 1, isHigh);
+      if (rLeader) {
+        leader = rLeader;
+        bonusPlayer = canonicalName(rLeader.pick.name);
+        bonusOwner = shortName(rLeader.pick.owner);
+        bonusScore = ' ' + fmtScore(rLeader.roundScore);
       }
     }
 
-    const isLive = hasScores;
+    const isLive = hasScores && leader !== null;
     html += `
       <div class="prize-card">
         <div class="prize-top-row">
@@ -1649,7 +1658,7 @@ function renderPrizes() {
         <div class="prize-bottom-row">
           <div class="prize-cell" style="grid-column:span 2">
             <div class="prize-cell-label">${isLive ? 'Current Leader' : 'Determined per round'}</div>
-            <div class="prize-cell-value ${isLive && bonusPlayer !== '—' ? 'highlight' : 'dim'}">${isLive && bonusPlayer !== '—' ? bonusPlayer + bonusScore + ' · ' + bonusOwner : 'Updates during play'}</div>
+            <div class="prize-cell-value ${isLive ? 'highlight' : 'dim'}">${isLive ? bonusPlayer + bonusScore + ' · ' + bonusOwner : 'Updates during play'}</div>
           </div>
         </div>
       </div>`;
