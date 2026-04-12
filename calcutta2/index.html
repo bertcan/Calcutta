@@ -335,6 +335,17 @@ letter-spacing: 0.5px;
 white-space: nowrap;
 }
 
+.bonus-tag {
+font-size: 9px;
+padding: 2px 6px;
+border-radius: 4px;
+background: rgba(76,168,150,0.12);
+color: #6dd5c0;
+border: 1px solid rgba(76,168,150,0.3);
+letter-spacing: 0.5px;
+white-space: nowrap;
+}
+
 .player-right {
 text-align: right;
 flex-shrink: 0;
@@ -1091,6 +1102,18 @@ function computeTeamStats(teamName) {
     }
     proj += projectedPayout(pos, 87, tieCount) * ownership;
   });
+  // Add bonus prizes (round lows/highs)
+  computeBonusWinners().forEach(bonus => {
+    bonus.winnerEntries.forEach(entry => {
+      entry.picks.forEach(pick => {
+        const isOwner = pick.owner === teamName;
+        const isSplit = pick.splitOwner === teamName;
+        if (!isOwner && !isSplit) return;
+        const ownership = pick.splitPct ? (isOwner ? (1 - pick.splitPct) : pick.splitPct) : 1.0;
+        proj += bonus.perAmt * ownership;
+      });
+    });
+  });
   return { invested, proj };
 }
 
@@ -1352,6 +1375,7 @@ function renderMyTeam() {
   const { invested, proj } = computeTeamStats(team);
   const mult = fmtMultiple(proj, invested);
 
+  const allBonuses = computeBonusWinners();
   let html = '';
   sorted.forEach((pick, i) => {
     const isOwner = pick.owner === team;
@@ -1368,10 +1392,25 @@ function renderMyTeam() {
     const basePayout = projectedPayout(pos, 87, tieCount);
     const myPayout = basePayout * ownership;
 
+    // Bonus prizes won by this specific pick
+    const bonusWinnings = [];
+    allBonuses.forEach(bonus => {
+      const myEntry = bonus.winnerEntries.find(e => e.picks.some(p => p.id === pick.id));
+      if (myEntry) {
+        const amt = Math.round(bonus.perAmt * ownership);
+        if (amt > 0) bonusWinnings.push({ place: bonus.place, amt });
+      }
+    });
+    const bonusTotal = bonusWinnings.reduce((s, b) => s + b.amt, 0);
+    const totalPayout = myPayout + bonusTotal;
+
     const posClass = pos === 1 ? 'leader' : (status === 'cut' ? 'missed-cut' : 'made-cut');
     const badgeClass = pos <= 3 ? 'top3' : (pos <= 10 ? 'top10' : (status === 'cut' ? 'missed' : ''));
     const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || (pos && pos <= 99 ? String(pos) : '—')) || '—';
     const splitLabel = pick.splitPct ? `<span class="split-tag">${Math.round(ownership * 100)}% share</span>` : '';
+    const bonusTagsHtml = bonusWinnings.length > 0
+      ? `<div class="player-meta">${bonusWinnings.map(b => `<span class="bonus-tag">${shortPrizeName(b.place)}: ${fmtMoney(b.amt)}</span>`).join('')}</div>`
+      : '';
 
     html += `
       <div class="player-card ${posClass}" style="animation-delay:${i * 0.04}s">
@@ -1382,9 +1421,10 @@ function renderMyTeam() {
             <span class="player-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}${thru && thru !== '-' ? (thru === 'F' ? ' · F' : ' · Thru ' + thru) : ''}</span>
             ${splitLabel}
           </div>
+          ${bonusTagsHtml}
         </div>
         <div class="player-right">
-          <div class="proj-win ${myPayout === 0 ? 'zero' : ''}">${myPayout > 0 ? fmtMoney(myPayout) : '—'}</div>
+          <div class="proj-win ${totalPayout === 0 ? 'zero' : ''}">${totalPayout > 0 ? fmtMoney(totalPayout) : '—'}</div>
           <span class="cost-label">paid ${fmtMoney(myPaid)}</span>
         </div>
       </div>`;
@@ -1455,6 +1495,21 @@ function renderLeaderboard() {
     }
   });
 
+  // Add bonus prizes (round lows/highs)
+  computeBonusWinners().forEach(bonus => {
+    bonus.winnerEntries.forEach(entry => {
+      entry.picks.forEach(pick => {
+        const ownerPct = pick.splitPct ? (1 - pick.splitPct) : 1.0;
+        if (teams[pick.owner]) {
+          teams[pick.owner].proj += bonus.perAmt * ownerPct;
+        }
+        if (pick.splitOwner && pick.splitPct && teams[pick.splitOwner]) {
+          teams[pick.splitOwner].proj += bonus.perAmt * pick.splitPct;
+        }
+      });
+    });
+  });
+
   // Sort by projected winnings
   const sorted = Object.entries(teams).sort((a, b) => b[1].proj - a[1].proj);
 
@@ -1481,6 +1536,56 @@ function renderLeaderboard() {
 
   document.getElementById('lb-rows').innerHTML = html;
   if (lastFetch) document.getElementById('lb-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
+}
+
+// ============================================================
+// BONUS PRIZE HELPERS — shared by prizes, team, and leaderboard views
+// ============================================================
+
+function getRndLeader(rIdx, wantHigh) {
+  let best = wantHigh ? -Infinity : Infinity;
+  let playerMap = {};
+  ALL_PICKS.forEach(pick => {
+    if (pick.inField || canonicalName(pick.name) === 'Field') return;
+    const s = getScore(pick.name);
+    if (!s || s.status === 'wd') return;
+    const rs = Array.isArray(s.roundScores) && s.roundScores[rIdx] !== undefined ? s.roundScores[rIdx] : null;
+    if (rs === null) return;
+    const canon = canonicalName(pick.name);
+    if (wantHigh ? rs > best : rs < best) {
+      best = rs; playerMap = {};
+      playerMap[canon] = { picks: [pick], score: s, roundScore: rs };
+    } else if (rs === best) {
+      if (playerMap[canon]) playerMap[canon].picks.push(pick);
+      else playerMap[canon] = { picks: [pick], score: s, roundScore: rs };
+    }
+  });
+  return Object.values(playerMap);
+}
+
+function computeBonusWinners() {
+  if (Object.keys(liveScores).length === 0) return [];
+  const results = [];
+  PAYOUTS.slice(7).forEach(payout => {
+    const payoutAmt = Math.round(payout.pct * TOTAL_POT);
+    const roundMatch = payout.place.match(/(\d+)/);
+    const roundNum = roundMatch ? parseInt(roundMatch[1]) : null;
+    const isHigh = payout.place.toLowerCase().includes('high');
+    if (roundNum === null) return;
+    const winnerEntries = getRndLeader(roundNum - 1, isHigh);
+    if (winnerEntries.length === 0) return;
+    const tieCount = winnerEntries.length;
+    const perAmt = Math.round(payoutAmt / tieCount);
+    results.push({ place: payout.place, totalAmt: payoutAmt, perAmt, tieCount, winnerEntries, roundScore: winnerEntries[0].roundScore });
+  });
+  return results;
+}
+
+function shortPrizeName(place) {
+  return place
+    .replace(/(\d+)(?:st|nd|rd|th) Round (Low|High)/i, (_, n, lh) => `R${n} ${lh}`)
+    .replace(/(Low|High) Round (\d+)/i, (_, lh, n) => `R${n} ${lh}`)
+    .replace('Low Amateur', 'Low Am');
 }
 
 // ============================================================
@@ -1620,59 +1725,28 @@ function renderPrizes() {
     }
   }
 
-  // Per-round leader helper: rIdx=0 for R1, 1 for R2, etc.
-  // Returns array of unique golfers tied at best score. Each entry has {picks[], score, roundScore}.
-  // Picks with the same canonical name are merged into one entry so they count as ONE golfer.
-  const getRndLeader = (rIdx, wantHigh) => {
-    let best = wantHigh ? -Infinity : Infinity;
-    let playerMap = {};
-    ALL_PICKS.forEach(pick => {
-      if (pick.inField || canonicalName(pick.name) === 'Field') return;
-      const s = getScore(pick.name);
-      if (!s || s.status === 'wd') return;
-      const rs = Array.isArray(s.roundScores) && s.roundScores[rIdx] !== undefined ? s.roundScores[rIdx] : null;
-      if (rs === null) return;
-      const canon = canonicalName(pick.name);
-      if (wantHigh ? rs > best : rs < best) {
-        best = rs; playerMap = {};
-        playerMap[canon] = { picks: [pick], score: s, roundScore: rs };
-      } else if (rs === best) {
-        if (playerMap[canon]) playerMap[canon].picks.push(pick);
-        else playerMap[canon] = { picks: [pick], score: s, roundScore: rs };
-      }
-    });
-    return Object.values(playerMap);
-  };
-
-  // Bonus payouts (round lows + high rounds) — simpler cards
+  // Bonus payouts — use shared computeBonusWinners()
   html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
-  bonusPayouts.forEach((payout) => {
+  const bonusResults = computeBonusWinners();
+  PAYOUTS.slice(7).forEach(payout => {
     const payoutAmt = Math.round(payout.pct * TOTAL_POT);
-    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '', leader = null;
+    const result = bonusResults.find(r => r.place === payout.place);
+    const tieCount = result ? result.tieCount : 1;
+    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '';
 
-    const roundMatch = payout.place.match(/(\d+)/);
-    const roundNum = roundMatch ? parseInt(roundMatch[1]) : null;
-    const isHigh = payout.place.toLowerCase().includes('high');
-
-    let tieCount = 1;
-    if (hasScores && roundNum !== null) {
-      const rLeaders = getRndLeader(roundNum - 1, isHigh);
-      if (rLeaders.length > 0) {
-        leader = rLeaders[0];
-        tieCount = rLeaders.length;
-        bonusPlayer = rLeaders.map(l => canonicalName(l.picks[0].name)).join(' / ');
-        bonusOwner = rLeaders.map(l =>
-          l.picks.length > 1 ? l.picks.map(p => shortName(p.owner)).join('/') : shortName(l.picks[0].owner)
-        ).join(' · ');
-        bonusScore = ' ' + fmtScore(rLeaders[0].roundScore) + (tieCount > 1 ? ' (tied)' : '');
-      }
+    if (result) {
+      bonusPlayer = result.winnerEntries.map(e => canonicalName(e.picks[0].name)).join(' / ');
+      bonusOwner = result.winnerEntries.map(e =>
+        e.picks.length > 1 ? e.picks.map(p => shortName(p.owner)).join('/') : shortName(e.picks[0].owner)
+      ).join(' · ');
+      bonusScore = ' ' + fmtScore(result.roundScore) + (tieCount > 1 ? ' (tied)' : '');
     }
 
     const perAmt = Math.round(payoutAmt / tieCount);
     const amtDisplay = tieCount > 1
       ? `${fmtMoney(payoutAmt)} <span style="font-size:0.75em;opacity:0.65">÷${tieCount} = ${fmtMoney(perAmt)} each</span>`
       : fmtMoney(payoutAmt);
-    const isLive = hasScores && leader !== null;
+    const isLive = hasScores && result !== undefined;
     html += `
       <div class="prize-card">
         <div class="prize-top-row">
