@@ -1248,11 +1248,12 @@ async function fetchLiveScores() {
       if (isCut) {
         thru = 'CUT';
       } else if (currentLs) {
-        if (currentLs.value >= 50) {
+        const holesPlayed = currentLs.linescores?.length ?? 0;
+        if (holesPlayed === 18) {
           thru = 'F';
-        } else if (currentLs.value > 0) {
-          // In progress — count holes from nested hole-by-hole linescores
-          thru = String(currentLs.linescores?.length || '*');
+        } else if (holesPlayed > 0) {
+          // In progress — use nested hole count directly
+          thru = String(holesPlayed);
         } else {
           // Not started — show tee time from stats[6]
           const teeRaw = currentLs.statistics?.categories?.[0]?.stats?.[6]?.displayValue;
@@ -1266,12 +1267,12 @@ async function fetchLiveScores() {
         }
       }
 
-      // Per-round to-par numbers — only for completed rounds (value>=50); in-progress shows in TODAY
+      // Per-round to-par numbers — only for completed rounds (18 holes played); in-progress shows in TODAY
       const roundScores = linescores.map(ls =>
-        ls.value >= 50 ? (ls.displayValue === 'E' ? 0 : (parseInt(ls.displayValue.replace('+', '')) || 0)) : undefined
+        (ls.linescores?.length ?? 0) === 18 ? (ls.displayValue === 'E' ? 0 : (parseInt(ls.displayValue.replace('+', '')) || 0)) : undefined
       );
       // Per-round raw stroke totals — only for completed rounds
-      const roundStrokes = linescores.map(ls => ls.value >= 50 ? ls.value : undefined);
+      const roundStrokes = linescores.map(ls => (ls.linescores?.length ?? 0) === 18 ? ls.value : undefined);
 
       newScores[name] = { name, position: comp.order || 999, posStr: '', score, todayScore, thru, status, roundScores, roundStrokes };
     });
