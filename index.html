@@ -991,7 +991,7 @@ const ALL_PICKS = [
   { id: 60, name: 'John Keefer',            owner: 'Austin Mai',      price: 12.50, inField: true },
   { id: 61, name: 'Nick Taylor',            owner: 'Chase Nixon',     price: 125  },
   { id: 62, name: 'Rasmus Neergaard-Petersen', owner: 'David Turner', price: 100  },
-  { id: 63, name: 'Casey Jarvis',           owner: 'Austin Mai',      price: 12.50, inField: true },
+  { id: 63, name: 'Casey Jarvis',           owner: 'Austin Mai',      price: 12.50, inField: true, amateur: true },
   { id: 64, name: 'Sungjae Im',             owner: 'Sam Turtletaub',  price: 950  },
   { id: 65, name: 'Aldrich Potgieter',      owner: 'Patrick Sala',    price: 75   },
   { id: 66, name: 'Wyndham Clark',          owner: 'Matt Clayton',    price: 325  },
@@ -1002,12 +1002,12 @@ const ALL_PICKS = [
   { id: 71, name: 'Carlos Ortiz',           owner: 'Carter Hickok',   price: 125  },
   { id: 72, name: 'Max Homa',              owner: 'Carter Hickok',   price: 725  },
   { id: 73, name: 'Brooks Koepka',         owner: 'Charles Knowlton',price: 1375 },
-  { id: 74, name: 'Mason Howell (a)',       owner: 'Charles Knowlton',price: 400  },
-  { id: 75, name: 'Ethan Fang (a)',         owner: 'Matt Clayton',    price: 275  },
-  { id: 76, name: 'Jackson Herrington (a)', owner: 'Carter Hickok',   price: 100  },
-  { id: 77, name: 'Mateo Pulcini (a)',      owner: 'Matt Clayton',    price: 100  },
-  { id: 78, name: 'Brandon Holtz (a)',      owner: 'Travis Francois', price: 350  },
-  { id: 79, name: 'Fifa Laopakdee (a)',     owner: 'Matt Clayton',    price: 350  },
+  { id: 74, name: 'Mason Howell (a)',       owner: 'Charles Knowlton',price: 400,  amateur: true },
+  { id: 75, name: 'Ethan Fang (a)',         owner: 'Matt Clayton',    price: 275,  amateur: true },
+  { id: 76, name: 'Jackson Herrington (a)', owner: 'Carter Hickok',   price: 100,  amateur: true },
+  { id: 77, name: 'Mateo Pulcini (a)',      owner: 'Matt Clayton',    price: 100,  amateur: true },
+  { id: 78, name: 'Brandon Holtz (a)',      owner: 'Travis Francois', price: 350,  amateur: true },
+  { id: 79, name: 'Fifa Laopakdee (a)',     owner: 'Matt Clayton',    price: 350,  amateur: true },
   { id: 80, name: 'Danny Willett',          owner: 'Matt Clayton',    price: 100  },
   { id: 81, name: 'Mike Weir',             owner: 'Travis Francois', price: 50   },
   { id: 82, name: 'Bubba Watson',          owner: 'Travis Francois', price: 175  },
@@ -1676,16 +1676,36 @@ function renderPrizes() {
     return Object.values(playerMap);
   };
 
-  // Compute Low Amateur leader
-  const amateurPicks = ALL_PICKS.filter(p =>
-    p.name.includes('(a)') || p.name === 'Casey Jarvis'
-  );
-  let lowAm = null, lowAmScore = Infinity;
-  amateurPicks.forEach(pick => {
-    const s = getScore(pick.name);
-    if (!s || s.status === 'cut' || s.status === 'wd') return;
-    if (s.score < lowAmScore) { lowAmScore = s.score; lowAm = { pick, score: s }; }
+  // Compute Low Amateur leader.
+  // Priority 1: amateur who made the cut with best (lowest) leaderboard position.
+  // Priority 2: if none made the cut, amateur with best combined R1+R2 to-par score.
+  const amateurPicks = ALL_PICKS.filter(p => p.amateur);
+  let lowAm = null, lowAmFallback = false;
+
+  const amadsMadeCut = amateurPicks.filter(p => {
+    const s = getScore(p.name);
+    return s && s.status !== 'cut' && s.status !== 'wd';
   });
+
+  if (amadsMadeCut.length > 0) {
+    amadsMadeCut.forEach(pick => {
+      const s = getScore(pick.name);
+      if (!lowAm || (s.position || 999) < (lowAm.score.position || 999)) lowAm = { pick, score: s };
+    });
+  } else {
+    // Fallback: best combined R1+R2 to-par among all amateurs
+    let bestR1R2 = Infinity;
+    amateurPicks.forEach(pick => {
+      const s = getScore(pick.name);
+      if (!s || s.status === 'wd') return;
+      const rs = s.roundScores || [];
+      const r1 = rs[0] !== undefined ? rs[0] : 0;
+      const r2 = rs[1] !== undefined ? rs[1] : 0;
+      if (rs[0] === undefined && rs[1] === undefined) return;
+      const total = r1 + r2;
+      if (total < bestR1R2) { bestR1R2 = total; lowAm = { pick, score: s, r1r2Total: total }; lowAmFallback = true; }
+    });
+  }
 
   // Bonus payouts (round prizes, amateur) — simpler cards
   html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
@@ -1703,7 +1723,9 @@ function renderPrizes() {
         leader = lowAm;
         bonusPlayer = canonicalName(lowAm.pick.name);
         bonusOwner = shortName(lowAm.pick.owner);
-        bonusScore = ' ' + fmtScore(lowAm.score.score);
+        bonusScore = lowAmFallback
+          ? ' ' + fmtScore(lowAm.r1r2Total) + ' (R1+R2, all cut)'
+          : ' ' + fmtScore(lowAm.score.score);
       } else if (roundNum !== null) {
         const rLeaders = getRndLeader(roundNum - 1, isHigh);
         if (rLeaders.length > 0) {
