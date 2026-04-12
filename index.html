@@ -885,14 +885,6 @@ const PAYOUTS = [
   { place: 'Low Amateur',     pct: 0.02  },
 ];
 
-// Manual overrides for round bonus prizes — set when ESPN per-round scores are unreliable
-// or to lock in confirmed results. Key format: 'R-low' or 'R-high' (R = round number).
-// Leave a key out to fall back to auto-detection from ESPN roundScores.
-const ROUND_PRIZE_OVERRIDES = {
-  '1-low':  ['Rory McIlroy', 'Sam Burns'],
-  '3-low':  ['Scottie Scheffler', 'Cameron Young'],
-  '1-high': ['Naoyuki Kataoka', 'Aldrich Potgieter'],
-};
 
 // Full Calcutta picks from XLS
 const ALL_PICKS = [
@@ -1151,36 +1143,28 @@ function ordinal(n) {
   }
 }
 
-// Compute which pick names lead each round low/high (with tie counts) and low amateur
-// Returns { rounds: [{ low: {leaders, tieCount}, high: {leaders, tieCount} }, ...], lowAm: {leader, tieCount} }
+// Compute which pick names lead each round low/high (with tie counts) and low amateur.
+// Eligibility for a round prize = having a roundScores[rIdx] value, regardless of
+// cut/WD status — cut players completed earlier rounds and are eligible for those prizes.
 function computeRoundLeaders() {
   const rounds = [0, 1, 2, 3].map(rIdx => {
-    const rNum = rIdx + 1;
-    // Use manual override if defined for this round/type
-    const overrideLow  = ROUND_PRIZE_OVERRIDES[`${rNum}-low`];
-    const overrideHigh = ROUND_PRIZE_OVERRIDES[`${rNum}-high`];
-    let low  = overrideLow  ? { leaders: overrideLow,  tieCount: overrideLow.length  } : null;
-    let high = overrideHigh ? { leaders: overrideHigh, tieCount: overrideHigh.length } : null;
-
-    // Auto-detect from ESPN roundScores for slots without an override
-    if (!low || !high) {
-      let lowBest = Infinity, highBest = -Infinity;
-      let lowLeaders = [], highLeaders = [];
-      ALL_PICKS.forEach(pick => {
-        if (pick.inField || canonicalName(pick.name) === 'Field') return;
-        const s = getScore(pick.name);
-        if (!s || s.status === 'cut' || s.status === 'wd') return;
-        const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
-        if (rs === undefined) return;
-        if (rs < lowBest)        { lowBest  = rs; lowLeaders  = [canonicalName(pick.name)]; }
-        else if (rs === lowBest)  { lowLeaders.push(canonicalName(pick.name)); }
-        if (rs > highBest)        { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
-        else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
-      });
-      if (!low  && lowLeaders.length  > 0) low  = { leaders: lowLeaders,  tieCount: lowLeaders.length  };
-      if (!high && highLeaders.length > 0) high = { leaders: highLeaders, tieCount: highLeaders.length };
-    }
-    return { low, high };
+    let lowBest = Infinity, highBest = -Infinity;
+    let lowLeaders = [], highLeaders = [];
+    ALL_PICKS.forEach(pick => {
+      if (pick.inField || canonicalName(pick.name) === 'Field') return;
+      const s = getScore(pick.name);
+      if (!s) return;
+      const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
+      if (rs === undefined) return; // didn't play this round
+      if (rs < lowBest)        { lowBest  = rs; lowLeaders  = [canonicalName(pick.name)]; }
+      else if (rs === lowBest)  { lowLeaders.push(canonicalName(pick.name)); }
+      if (rs > highBest)        { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
+      else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
+    });
+    return {
+      low:  lowLeaders.length  > 0 ? { leaders: lowLeaders,  tieCount: lowLeaders.length  } : null,
+      high: highLeaders.length > 0 ? { leaders: highLeaders, tieCount: highLeaders.length } : null,
+    };
   });
   let lowAm = null, lowAmScore = Infinity, lowAmLeaders = [];
   ALL_PICKS.forEach(pick => {
@@ -1383,6 +1367,15 @@ async function fetchLiveScores() {
 
     liveScores = newScores;
     lastFetch = new Date();
+
+    // Debug: log round leaders so we can verify tie detection
+    const rl = computeRoundLeaders();
+    console.log('[RoundLeaders]', JSON.stringify(rl.rounds.map((r, i) => ({
+      round: i + 1,
+      low:  r.low  ? r.low.leaders  : null,
+      high: r.high ? r.high.leaders : null,
+    })), null, 2));
+
     renderAll();
     updateCountdown();
 

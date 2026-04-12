@@ -887,13 +887,6 @@ const PAYOUTS = [
   { place: 'High Round 2',    pct: 0.02 },
 ];
 
-// Manual overrides for round bonus prizes
-const ROUND_PRIZE_OVERRIDES = {
-  '1-low':  ['Rory McIlroy', 'Sam Burns'],
-  '3-low':  ['Scottie Scheffler', 'Cameron Young'],
-  '1-high': ['Naoyuki Kataoka', 'Aldrich Potgieter'],
-};
-
 // TODO: Replace ALL_PICKS with actual auction results
 // Format for a standard pick:
 //   { id: 1, name: 'Player Name', owner: 'Owner Name', price: 1000 }
@@ -1125,34 +1118,28 @@ function ordinal(n) {
   }
 }
 
-// Compute which pick names lead each round low/high (with tie counts)
-// Uses ROUND_PRIZE_OVERRIDES when set; falls back to ESPN roundScores auto-detect
+// Compute which pick names lead each round low/high (with tie counts).
+// Eligibility = having a roundScores[rIdx] value — cut players are included
+// for rounds they completed (e.g. R1/R2 before missing the cut).
 function computeRoundLeaders() {
   const rounds = [0, 1, 2, 3].map(rIdx => {
-    const rNum = rIdx + 1;
-    const overrideLow  = ROUND_PRIZE_OVERRIDES[`${rNum}-low`];
-    const overrideHigh = ROUND_PRIZE_OVERRIDES[`${rNum}-high`];
-    let low  = overrideLow  ? { leaders: overrideLow,  tieCount: overrideLow.length  } : null;
-    let high = overrideHigh ? { leaders: overrideHigh, tieCount: overrideHigh.length } : null;
-
-    if (!low || !high) {
-      let lowBest = Infinity, highBest = -Infinity;
-      let lowLeaders = [], highLeaders = [];
-      ALL_PICKS.forEach(pick => {
-        if (pick.inField || canonicalName(pick.name) === 'Field') return;
-        const s = getScore(pick.name);
-        if (!s || s.status === 'cut' || s.status === 'wd') return;
-        const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
-        if (rs === undefined) return;
-        if (rs < lowBest)        { lowBest  = rs; lowLeaders  = [canonicalName(pick.name)]; }
-        else if (rs === lowBest)  { lowLeaders.push(canonicalName(pick.name)); }
-        if (rs > highBest)        { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
-        else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
-      });
-      if (!low  && lowLeaders.length  > 0) low  = { leaders: lowLeaders,  tieCount: lowLeaders.length  };
-      if (!high && highLeaders.length > 0) high = { leaders: highLeaders, tieCount: highLeaders.length };
-    }
-    return { low, high };
+    let lowBest = Infinity, highBest = -Infinity;
+    let lowLeaders = [], highLeaders = [];
+    ALL_PICKS.forEach(pick => {
+      if (pick.inField || canonicalName(pick.name) === 'Field') return;
+      const s = getScore(pick.name);
+      if (!s) return;
+      const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
+      if (rs === undefined) return; // didn't play this round
+      if (rs < lowBest)        { lowBest  = rs; lowLeaders  = [canonicalName(pick.name)]; }
+      else if (rs === lowBest)  { lowLeaders.push(canonicalName(pick.name)); }
+      if (rs > highBest)        { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
+      else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
+    });
+    return {
+      low:  lowLeaders.length  > 0 ? { leaders: lowLeaders,  tieCount: lowLeaders.length  } : null,
+      high: highLeaders.length > 0 ? { leaders: highLeaders, tieCount: highLeaders.length } : null,
+    };
   });
   return { rounds, lowAm: null };
 }
