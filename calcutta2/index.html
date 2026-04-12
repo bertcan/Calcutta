@@ -1472,19 +1472,19 @@ function renderLeaderboard() {
 function renderPrizes() {
   const hasScores = Object.keys(liveScores).length > 0;
 
-  // Build position → player map from liveScores
-  const posMap = {}; // position int → pick entry
+  // Build position → array of picks (multiple picks can share a tied position)
+  const posMap = {};
   ALL_PICKS.forEach(pick => {
     if (canonicalName(pick.name) === 'Field' || pick.inField) return;
     const score = getScore(pick.name);
     if (!score || !score.position || score.position > 200) return;
+    if (score.status === 'cut' || score.status === 'wd') return;
     const pos = score.position;
-    if (!posMap[pos] || pick.price > (posMap[pos].pick.price || 0)) {
-      posMap[pos] = { pick, score };
-    }
+    if (!posMap[pos]) posMap[pos] = [];
+    posMap[pos].push({ pick, score });
   });
 
-  // For each main payout position (1st–7th), show current leader
+  // For each main payout position (1st–7th), show current leader(s)
   const mainPayouts = PAYOUTS.slice(0, 7); // 1st–7th
   const bonusPayouts = PAYOUTS.slice(7);   // round lows + high rounds
 
@@ -1492,32 +1492,32 @@ function renderPrizes() {
 
   mainPayouts.forEach((payout, i) => {
     const position = i + 1;
-    const payoutAmt = Math.round(payout.pct * TOTAL_POT);
-    const entry = posMap[position];
+    const slotAmt = Math.round(payout.pct * TOTAL_POT);
+    const entries = posMap[position] || [];
     const isTop = i < 3;
 
+    // Field-wide tie count → determines how payout is split
+    const tieCount = entries.length > 0 ? (entries[0].score.tieCount || 1) : 1;
+    const effectiveAmt = entries.length > 0 ? Math.round(projectedPayout(position, 87, tieCount)) : slotAmt;
+    const tieNote = tieCount > 1 ? ` <span style="font-size:0.75em;opacity:0.65">T${position} ÷${tieCount}</span>` : '';
+
     let playerName = '—', ownerName = '—', invested = 0, multiple = { text: '—', cls: 'multiple-neutral' };
-    let scoreDisplay = '', ownership = 1.0;
+    let scoreDisplay = '';
 
-    if (entry && hasScores) {
-      const pick = entry.pick;
-      const score = entry.score;
-      playerName = canonicalName(pick.name);
-      ownerName = shortName(pick.owner);
-
-      // Determine ownership for this slot
-      if (pick.splitPct) {
-        // Both owners share — show primary owner
-        ownerName = shortName(pick.owner);
-        ownership = 1 - pick.splitPct;
-        // If split, note it
-        ownerName += ` (${Math.round(ownership*100)}%)`;
+    if (entries.length > 0 && hasScores) {
+      if (entries.length === 1) {
+        const { pick, score } = entries[0];
+        const ownership = pick.splitPct ? (1 - pick.splitPct) : 1.0;
+        playerName = canonicalName(pick.name);
+        ownerName = shortName(pick.owner) + (pick.splitPct ? ` (${Math.round(ownership*100)}%)` : '');
+        invested = TEAM_SPEND[pick.owner] || 0;
+        multiple = fmtMultiple(effectiveAmt * ownership, invested);
+        scoreDisplay = score.score !== null && score.score !== undefined ? ' ' + fmtScore(score.score) : '';
+      } else {
+        // Multiple of our picks tied at this position
+        playerName = entries.map(e => canonicalName(e.pick.name) + ' ' + fmtScore(e.score.score)).join('<br>');
+        ownerName = entries.map(e => shortName(e.pick.owner)).join(' / ');
       }
-      invested = TEAM_SPEND[pick.owner] || 0;
-      const actualPayout = payoutAmt * ownership;
-      multiple = fmtMultiple(actualPayout, invested);
-      const s = score.score;
-      scoreDisplay = s !== null && s !== undefined ? fmtScore(s) : '';
     }
 
     const rankIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
@@ -1529,12 +1529,12 @@ function renderPrizes() {
             <span class="prize-place ${isTop ? 'gold-text' : ''}">${rankIcon} ${payout.place}</span>
             <span class="prize-pct">${(payout.pct * 100).toFixed(1)}%</span>
           </div>
-          <div class="prize-amount">${fmtMoney(payoutAmt)}</div>
+          <div class="prize-amount">${fmtMoney(tieCount > 1 ? effectiveAmt : slotAmt)}${tieNote}</div>
         </div>
         <div class="prize-bottom-row">
           <div class="prize-cell">
             <div class="prize-cell-label">Current Leader</div>
-            <div class="prize-cell-value ${hasScores && playerName !== '—' ? 'highlight' : 'dim'}">${playerName}${scoreDisplay ? ' ' + scoreDisplay : ''}</div>
+            <div class="prize-cell-value ${hasScores && playerName !== '—' ? 'highlight' : 'dim'}">${playerName}${entries.length === 1 ? scoreDisplay : ''}</div>
           </div>
           <div class="prize-cell">
             <div class="prize-cell-label">Team</div>
