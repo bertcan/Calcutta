@@ -925,8 +925,12 @@ const PAYOUTS = [
 
 // Full Calcutta picks from XLS
 const ALL_PICKS = [
-  { id: 1,  name: 'Scottie Scheffler (1/2)', owner: 'Carter Hickok',   price: 7150 },
-  { id: 2,  name: 'Scottie Scheffler (2/2)', owner: 'Charles Knowlton',price: 5000 },
+  // FUTURE-YEAR NOTE: When a player is auctioned as fractional halves (e.g. Scottie split
+  // into (1/2) and (2/2)), add shareFraction: 1/N to each entry so prize calculations
+  // divide the payout correctly. Without it, every half gets the FULL prize — double-counting.
+  // This affects: renderLeaderboard, computeTeamStats, renderMyTeam, renderPrizes, renderPicks.
+  { id: 1,  name: 'Scottie Scheffler (1/2)', owner: 'Carter Hickok',   price: 7150, shareFraction: 0.5 },
+  { id: 2,  name: 'Scottie Scheffler (2/2)', owner: 'Charles Knowlton',price: 5000, shareFraction: 0.5 },
   { id: 3,  name: 'Rory McIlroy',            owner: 'David Turner',    price: 5275 },
   { id: 4,  name: 'Cameron Young',           owner: 'Carter Hickok',   price: 3900 },
   { id: 5,  name: 'Tommy Fleetwood',         owner: 'Sam Turtletaub',  price: 2125 },
@@ -1090,7 +1094,7 @@ function computeTeamStats(teamName) {
     if (pick.splitPct) {
       ownership = isOwner ? (1 - pick.splitPct) : pick.splitPct;
     }
-    proj += projectedPayout(pos, 87, tieCount) * ownership;
+    proj += projectedPayout(pos, 87, tieCount) * ownership * (pick.shareFraction || 1);
   });
   // Add Northwood Scottie pick for Austin
   if (teamName === 'Austin Mai') {
@@ -1372,7 +1376,7 @@ function renderMyTeam() {
     const status = score ? score.status : 'active';
 
     const tieCount = score ? (score.tieCount || 1) : 1;
-    const basePayout = projectedPayout(pos, 87, tieCount);
+    const basePayout = projectedPayout(pos, 87, tieCount) * (pick.shareFraction || 1);
     const myPayout = basePayout * ownership;
 
     const posClass = pos === 1 ? 'leader' : (status === 'cut' ? 'missed-cut' : 'made-cut');
@@ -1452,7 +1456,7 @@ function renderLeaderboard() {
     const score = getScore(pick.name);
     const pos = score ? score.position : null;
     const tieCount = score ? (score.tieCount || 1) : 1;
-    const fullPayout = projectedPayout(pos, 87, tieCount);
+    const fullPayout = projectedPayout(pos, 87, tieCount) * (pick.shareFraction || 1);
 
     // Credit primary owner their share
     const ownerPct = pick.splitPct ? (1 - pick.splitPct) : 1.0;
@@ -1538,7 +1542,17 @@ function renderPrizes() {
     let scoreDisplay = '';
     const buildPlayerInfo = (effectiveAmt) => {
       if (entries.length > 0 && hasScores) {
-        if (entries.length === 1) {
+        const uniqueCanon = [...new Set(entries.map(e => canonicalName(e.pick.name)))];
+        if (uniqueCanon.length === 1 && entries.length > 1) {
+          // Multiple ownership halves of the SAME golfer (e.g. Scottie 1/2 and 2/2).
+          // Prize is NOT split across payout slots — the combined purchase price is the basis.
+          const { score } = entries[0];
+          playerName = uniqueCanon[0];
+          ownerName = entries.map(e => shortName(e.pick.owner)).join(' / ');
+          invested = entries.reduce((sum, e) => sum + (e.pick.price || 0), 0);
+          multiple = fmtMultiple(effectiveAmt, invested);
+          scoreDisplay = score.score !== null && score.score !== undefined ? ' ' + fmtScore(score.score) : '';
+        } else if (entries.length === 1) {
           const { pick, score } = entries[0];
           const ownership = pick.splitPct ? (1 - pick.splitPct) : 1.0;
           playerName = canonicalName(pick.name);
@@ -1547,6 +1561,7 @@ function renderPrizes() {
           multiple = fmtMultiple(effectiveAmt, invested);
           scoreDisplay = score.score !== null && score.score !== undefined ? ' ' + fmtScore(score.score) : '';
         } else {
+          // Real tie between different players
           playerName = entries.map(e => canonicalName(e.pick.name) + ' ' + fmtScore(e.score.score)).join('<br>');
           ownerName = entries.map(e => shortName(e.pick.owner)).join(' / ');
         }
@@ -1733,7 +1748,7 @@ function renderPicks() {
     const tieCount = score ? (score.tieCount || 1) : 1;
     const status = score ? score.status : 'active';
     const isCut = status === 'cut';
-    const proj = isCut ? 0 : projectedPayout(pos, 87, tieCount);
+    const proj = isCut ? 0 : projectedPayout(pos, 87, tieCount) * (pick.shareFraction || 1);
     const multVal = pick.price > 0 ? proj / pick.price : 0;
     const ownerDisplay = pick.splitOwner
       ? `${shortName(pick.owner)}/${shortName(pick.splitOwner)}`
