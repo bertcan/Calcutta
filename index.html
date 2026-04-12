@@ -490,6 +490,49 @@ text-overflow: ellipsis;
 
 .field-owner.mine { color: var(--gold); font-weight: 600; }
 
+/* ===== AUCTION TAB ===== */
+.picks-header, .picks-row {
+display: grid;
+grid-template-columns: 1fr 58px 52px 58px 42px;
+align-items: center;
+padding: 8px 12px;
+}
+.picks-header {
+font-size: 10px;
+color: var(--text-dim);
+font-weight: 700;
+letter-spacing: 0.06em;
+text-transform: uppercase;
+border-bottom: 1px solid rgba(255,255,255,0.12);
+position: sticky;
+top: 0;
+background: var(--green-dark);
+z-index: 1;
+}
+.picks-row {
+border-bottom: 1px solid rgba(255,255,255,0.04);
+transition: background 0.15s;
+}
+.picks-row:active { background: rgba(255,255,255,0.03); }
+.picks-player-name {
+font-size: 13px;
+color: var(--cream);
+font-family: 'Playfair Display', serif;
+font-weight: 600;
+padding-right: 4px;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+.picks-cell {
+font-size: 11px;
+font-weight: 600;
+text-align: right;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
+}
+
 /* ===== PAYOUTS VIEW ===== */
 .payout-card {
 background: var(--green-dark);
@@ -750,6 +793,7 @@ text-overflow: ellipsis;
   <button class="tab" onclick="switchTab('leaderboard', this)">🏆 Standings</button>
   <button class="tab" onclick="switchTab('field', this)">📋 Field</button>
   <button class="tab" onclick="switchTab('prizes', this)">🏅 Prizes</button>
+  <button class="tab" onclick="switchTab('auction', this)">🛒 Auction</button>
   <button class="tab" onclick="switchTab('payouts', this)">💰 Payouts</button>
 </div>
 
@@ -819,6 +863,15 @@ text-overflow: ellipsis;
     <div class="section-title">Payout Positions — Current Leaders</div>
     <div id="prizes-list"></div>
     <div class="last-updated" id="prizes-updated">Tap refresh to load live scores</div>
+    <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
+  </div>
+
+  <!-- AUCTION VIEW — all picks, prices, projected winnings -->
+
+  <div class="view" id="view-auction">
+    <div class="section-title">Auction Results — All Picks</div>
+    <div id="picks-list"></div>
+    <div class="last-updated" id="picks-updated">Tap refresh to load live scores</div>
     <div class="powered-by">Powered by BVI Painkillers · bertcan</div>
   </div>
 
@@ -1658,6 +1711,50 @@ function renderPrizes() {
   document.getElementById('prizes-list').innerHTML = html;
   if (lastFetch) document.getElementById('prizes-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
 }
+
+// ============================================================
+// RENDER AUCTION — all picks sorted alphabetically
+// ============================================================
+function renderPicks() {
+  const hasScores = Object.keys(liveScores).length > 0;
+  const sorted = ALL_PICKS
+    .filter(p => !p.inField)
+    .sort((a, b) => canonicalName(a.name).localeCompare(canonicalName(b.name)));
+
+  let html = `
+    <div class="picks-header">
+      <div>PLAYER</div>
+      <div style="text-align:right">OWNER</div>
+      <div style="text-align:right">PRICE</div>
+      <div style="text-align:right">PROJ</div>
+      <div style="text-align:right">MULT</div>
+    </div>`;
+
+  sorted.forEach((pick, i) => {
+    const score = getScore(pick.name);
+    const pos = score ? score.position : null;
+    const tieCount = score ? (score.tieCount || 1) : 1;
+    const status = score ? score.status : 'active';
+    const proj = status !== 'cut' ? projectedPayout(pos, 87, tieCount) : 0;
+    const mult = fmtMultiple(proj, pick.price);
+    const ownerDisplay = pick.splitOwner
+      ? `${shortName(pick.owner)}/${shortName(pick.splitOwner)}`
+      : shortName(pick.owner);
+    const isCut = status === 'cut';
+
+    html += `
+      <div class="picks-row" style="animation-delay:${Math.min(i,30)*0.02}s${isCut ? ';opacity:0.45' : ''}">
+        <div class="picks-player-name">${canonicalName(pick.name)}</div>
+        <div class="picks-cell" style="color:var(--text-dim)">${ownerDisplay}</div>
+        <div class="picks-cell" style="color:var(--text-dim)">${fmtMoney(pick.price)}</div>
+        <div class="picks-cell ${proj > 0 ? 'score-under' : ''}">${hasScores ? (proj > 0 ? fmtMoney(proj) : (isCut ? 'MC' : '—')) : '—'}</div>
+        <div class="picks-cell ${hasScores && proj > 0 ? mult.cls : 'multiple-neutral'}">${hasScores ? mult.text : '—'}</div>
+      </div>`;
+  });
+
+  document.getElementById('picks-list').innerHTML = html;
+  if (lastFetch) document.getElementById('picks-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
+}
 function renderField() {
   // Deduplicate by canonical player name, merging owners for split picks
   const playerMap = {};
@@ -1753,6 +1850,7 @@ function renderAll() {
   renderLeaderboard();
   renderField();
   renderPrizes();
+  renderPicks();
 }
 
 // ============================================================
@@ -1774,6 +1872,7 @@ renderMyTeam();
 renderLeaderboard();
 renderField();
 renderPrizes();
+renderPicks();
 
 // Fetch immediately on load, then auto-refresh every 3 min
 fetchLiveScores().then(() => startAutoRefresh());
