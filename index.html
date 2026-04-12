@@ -1273,7 +1273,12 @@ async function fetchLiveScores() {
     if (!event) throw new Error(`No golf event found. Events: ${(data.events||[]).map(e=>e.name).join(', ')}`);
 
     const eventComps = event.competitions || [{}];
-    const competitors = eventComps[eventComps.length - 1].competitors || [];
+    const competition = eventComps[eventComps.length - 1];
+    // Current tournament round (1–4) — used to cap linescore entries so future rounds don't show
+    const tournamentRound = competition?.status?.period || event.status?.period || 4;
+    console.log('[Tournament] round:', tournamentRound, '| event:', event.name);
+
+    const competitors = competition.competitors || [];
     if (competitors.length === 0) throw new Error(`ESPN returned 0 competitors for: ${event.name}`);
 
 
@@ -1334,10 +1339,11 @@ async function fetchLiveScores() {
       const statusState = comp.status?.type?.state || comp.status?.state || '';
       const thruDirect = comp.status?.thru ?? comp.status?.type?.thru;
       let thru = '-';
-      if (statusState === 'post') thru = 'F';
-      else if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
-      else if (detail.toUpperCase() === 'CUT' || detail.toUpperCase() === 'MC') thru = 'CUT';
+      // Cut/WD MUST be checked before statusState='post' — cut players are also in 'post' state
+      if (detail.toUpperCase() === 'CUT' || detail.toUpperCase() === 'MC') thru = 'CUT';
       else if (detail.toUpperCase().includes('WD')) thru = 'WD';
+      else if (statusState === 'post') thru = 'F';
+      else if (detail === 'F' || detail.toLowerCase().includes('final')) thru = 'F';
       else if (/thru\s*(\d+)/i.test(detail)) thru = detail.match(/thru\s*(\d+)/i)[1];
       else if (/^\*?\s*(\d+)\s*\*?$/.test(detail.trim())) thru = detail.trim().replace(/\*/g, '').trim();
       else if (typeof thruDirect === 'number' && thruDirect > 0) thru = String(thruDirect);
@@ -1348,12 +1354,12 @@ async function fetchLiveScores() {
       const linescores = comp.linescores || [];
 
       // Per-round scores (index 0 = R1, 1 = R2, etc.) — to-par values
+      // Cap at tournamentRound so future-round placeholder entries are never stored
       const roundScores = [];
       linescores.forEach((ls, idx) => {
+        if (idx >= tournamentRound) return; // skip rounds beyond current tournament round
         const lsv = parseFloat(ls.value ?? ls.displayValue ?? '');
         if (isNaN(lsv)) return;
-        // Skip value=0 entries unless displayValue='E' (even par); value=0 is ESPN's placeholder for unplayed rounds
-        if (lsv === 0 && String(ls.displayValue ?? '').toUpperCase() !== 'E') return;
         roundScores[idx] = lsv > 30 ? (lsv - 72) : lsv;
       });
 
@@ -1373,16 +1379,20 @@ async function fetchLiveScores() {
         if (todayScore === null) todayScore = score; // R1 or fallback: cumulative = today
       }
 
-      // Status — check every available ESPN field (type.name, shortDetail, displayValue, detail, thru)
-      const sName   = (comp.status?.type?.name       || '').toUpperCase();
-      const sDetail = (comp.status?.type?.shortDetail || '').toUpperCase();
-      const sDisp   = (comp.status?.displayValue     || '').toUpperCase();
+      // Status — check every available ESPN field
+      const sName    = (comp.status?.type?.name       || '').toUpperCase();
+      const sDetail  = (comp.status?.type?.shortDetail || '').toUpperCase();
+      const sDisp    = (comp.status?.displayValue      || '').toUpperCase();
       const detailUp = detail.toUpperCase();
+      const posDisp  = posDisplay.toUpperCase(); // 'MC' for missed-cut players
+      const scoreDisp = toParStr.toUpperCase();  // comp.score might be 'MC' for cut players
       const status = (
         sName.includes('CUT') || sName.includes('MISSED') ||
         sDetail === 'MC' || sDetail === 'MDF' || sDetail.includes('CUT') ||
         sDisp === 'MC' || sDisp.includes('CUT') ||
-        detailUp === 'MC' || thru === 'CUT'
+        detailUp === 'MC' || thru === 'CUT' ||
+        posDisp === 'MC' || posDisp === 'CUT' ||
+        scoreDisp === 'MC'
       ) ? 'cut'
         : (
         sName.includes('WD') || sName.includes('WITHDRAWN') ||
@@ -1411,15 +1421,18 @@ async function fetchLiveScores() {
     const _wd  = Object.values(newScores).filter(p => p.status === 'wd');
     console.log(`[StatusSummary] total=${Object.keys(newScores).length} active=${Object.keys(newScores).length-_cut.length-_wd.length} cut=${_cut.length} wd=${_wd.length}`);
     if (_cut.length === 0) {
-      // Cut detection failed — log last 3 competitors' raw status fields so we can fix
-      console.warn('[CutDetect MISS] Last 3 competitors raw:', competitors.slice(-3).map(c => ({
-        name: c.athlete?.displayName,
-        typeName: c.status?.type?.name,
-        shortDetail: c.status?.type?.shortDetail,
-        displayValue: c.status?.displayValue,
-        score: c.score,
-        linescores: JSON.stringify(c.linescores),
-      })));
+      // Cut detection failed — log last 5 competitors' full raw data to diagnose
+      console.warn('[CutDetect MISS] tournamentRound:', tournamentRound, '— last 5 competitors raw:',
+        competitors.slice(-5).map(c => ({
+          name: c.athlete?.displayName,
+          score: c.score,
+          positionDisplayName: c.status?.position?.displayName || c.position?.displayName,
+          typeName: c.status?.type?.name,
+          shortDetail: c.status?.type?.shortDetail,
+          displayValue: c.status?.displayValue,
+          typeState: c.status?.type?.state,
+          linescores: JSON.stringify(c.linescores),
+        })));
     } else {
       console.log('[CutDetect OK] Sample cut player:', _cut[0].name, '| thru:', _cut[0].thru, '| roundScores:', JSON.stringify(_cut[0].roundScores));
     }
