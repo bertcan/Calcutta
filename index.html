@@ -885,6 +885,15 @@ const PAYOUTS = [
   { place: 'Low Amateur',     pct: 0.02  },
 ];
 
+// Manual overrides for round bonus prizes — set when ESPN per-round scores are unreliable
+// or to lock in confirmed results. Key format: 'R-low' or 'R-high' (R = round number).
+// Leave a key out to fall back to auto-detection from ESPN roundScores.
+const ROUND_PRIZE_OVERRIDES = {
+  '1-low':  ['Rory McIlroy', 'Sam Burns'],
+  '3-low':  ['Scottie Scheffler', 'Cameron Young'],
+  '1-high': ['Naoyuki Kataoka', 'Aldrich Potgieter'],
+};
+
 // Full Calcutta picks from XLS
 const ALL_PICKS = [
   { id: 1,  name: 'Scottie Scheffler (1/2)', owner: 'Carter Hickok',   price: 7150 },
@@ -1146,23 +1155,32 @@ function ordinal(n) {
 // Returns { rounds: [{ low: {leaders, tieCount}, high: {leaders, tieCount} }, ...], lowAm: {leader, tieCount} }
 function computeRoundLeaders() {
   const rounds = [0, 1, 2, 3].map(rIdx => {
-    let lowBest = Infinity, highBest = -Infinity;
-    let lowLeaders = [], highLeaders = [];
-    ALL_PICKS.forEach(pick => {
-      if (pick.inField || canonicalName(pick.name) === 'Field') return;
-      const s = getScore(pick.name);
-      if (!s || s.status === 'cut' || s.status === 'wd') return;
-      const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
-      if (rs === undefined) return;
-      if (rs < lowBest)       { lowBest = rs;  lowLeaders  = [canonicalName(pick.name)]; }
-      else if (rs === lowBest) { lowLeaders.push(canonicalName(pick.name)); }
-      if (rs > highBest)       { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
-      else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
-    });
-    return {
-      low:  lowLeaders.length  > 0 ? { leaders: lowLeaders,  tieCount: lowLeaders.length  } : null,
-      high: highLeaders.length > 0 ? { leaders: highLeaders, tieCount: highLeaders.length } : null,
-    };
+    const rNum = rIdx + 1;
+    // Use manual override if defined for this round/type
+    const overrideLow  = ROUND_PRIZE_OVERRIDES[`${rNum}-low`];
+    const overrideHigh = ROUND_PRIZE_OVERRIDES[`${rNum}-high`];
+    let low  = overrideLow  ? { leaders: overrideLow,  tieCount: overrideLow.length  } : null;
+    let high = overrideHigh ? { leaders: overrideHigh, tieCount: overrideHigh.length } : null;
+
+    // Auto-detect from ESPN roundScores for slots without an override
+    if (!low || !high) {
+      let lowBest = Infinity, highBest = -Infinity;
+      let lowLeaders = [], highLeaders = [];
+      ALL_PICKS.forEach(pick => {
+        if (pick.inField || canonicalName(pick.name) === 'Field') return;
+        const s = getScore(pick.name);
+        if (!s || s.status === 'cut' || s.status === 'wd') return;
+        const rs = Array.isArray(s.roundScores) ? s.roundScores[rIdx] : undefined;
+        if (rs === undefined) return;
+        if (rs < lowBest)        { lowBest  = rs; lowLeaders  = [canonicalName(pick.name)]; }
+        else if (rs === lowBest)  { lowLeaders.push(canonicalName(pick.name)); }
+        if (rs > highBest)        { highBest = rs; highLeaders = [canonicalName(pick.name)]; }
+        else if (rs === highBest) { highLeaders.push(canonicalName(pick.name)); }
+      });
+      if (!low  && lowLeaders.length  > 0) low  = { leaders: lowLeaders,  tieCount: lowLeaders.length  };
+      if (!high && highLeaders.length > 0) high = { leaders: highLeaders, tieCount: highLeaders.length };
+    }
+    return { low, high };
   });
   let lowAm = null, lowAmScore = Infinity, lowAmLeaders = [];
   ALL_PICKS.forEach(pick => {
@@ -1754,19 +1772,8 @@ function renderPrizes() {
     }
   }
 
-  // Per-round leader helper: rIdx=0 for R1, 1 for R2, etc.
-  const getRndLeader = (rIdx, wantHigh) => {
-    let leader = null, best = wantHigh ? -Infinity : Infinity;
-    ALL_PICKS.forEach(pick => {
-      if (pick.inField || canonicalName(pick.name) === 'Field') return;
-      const s = getScore(pick.name);
-      if (!s || s.status === 'cut' || s.status === 'wd') return;
-      const rs = Array.isArray(s.roundScores) && s.roundScores[rIdx] !== undefined ? s.roundScores[rIdx] : null;
-      if (rs === null) return;
-      if (wantHigh ? rs > best : rs < best) { best = rs; leader = { pick, score: s, roundScore: rs }; }
-    });
-    return leader;
-  };
+  // Round leaders (uses manual overrides + ESPN auto-detect)
+  const rlPrizes = computeRoundLeaders();
 
   // Compute Low Amateur leader
   const amateurPicks = ALL_PICKS.filter(p =>
@@ -1779,11 +1786,26 @@ function renderPrizes() {
     if (s.score < lowAmScore) { lowAmScore = s.score; lowAm = { pick, score: s }; }
   });
 
+  // Helper: build display for a round slot (handles ties with "/" separator)
+  const slotDisp = (slot, rIdx) => {
+    if (!slot) return null;
+    const names = slot.leaders.join(' / ');
+    const owners = [...new Set(slot.leaders.map(n => {
+      const p = ALL_PICKS.find(pk => !pk.inField && canonicalName(pk.name) === n);
+      return p ? shortName(p.owner) : '—';
+    }))].join(' / ');
+    const firstS = getScore(slot.leaders[0]);
+    const rs = firstS && rIdx !== undefined ? firstS.roundScores?.[rIdx] : undefined;
+    const scoreStr = rs !== undefined ? ' ' + fmtScore(rs) : '';
+    return { names, owners, scoreStr };
+  };
+
   // Bonus payouts (round prizes, amateur) — simpler cards
   html += `<div class="section-title" style="margin-top:4px">Bonus Prizes</div>`;
   bonusPayouts.forEach((payout) => {
     const payoutAmt = Math.round(payout.pct * TOTAL_POT);
-    let bonusPlayer = '—', bonusOwner = '—', bonusScore = '', leader = null;
+    let slot = null;
+    let rIdx = undefined;
 
     const roundMatch = payout.place.match(/(\d+)/);
     const roundNum = roundMatch ? parseInt(roundMatch[1]) : null;
@@ -1791,23 +1813,18 @@ function renderPrizes() {
     const isLowAmateur = payout.place === 'Low Amateur';
 
     if (hasScores) {
-      if (isLowAmateur && lowAm) {
-        leader = lowAm;
-        bonusPlayer = canonicalName(lowAm.pick.name);
-        bonusOwner = shortName(lowAm.pick.owner);
-        bonusScore = ' ' + fmtScore(lowAm.score.score);
+      if (isLowAmateur) {
+        if (rlPrizes.lowAm) slot = rlPrizes.lowAm;
+        else if (lowAm) slot = { leaders: [canonicalName(lowAm.pick.name)], tieCount: 1 };
       } else if (roundNum !== null) {
-        const rLeader = getRndLeader(roundNum - 1, isHigh);
-        if (rLeader) {
-          leader = rLeader;
-          bonusPlayer = canonicalName(rLeader.pick.name);
-          bonusOwner = shortName(rLeader.pick.owner);
-          bonusScore = ' ' + fmtScore(rLeader.roundScore);
-        }
+        rIdx = roundNum - 1;
+        slot = isHigh ? rlPrizes.rounds[rIdx]?.high : rlPrizes.rounds[rIdx]?.low;
       }
     }
 
-    const isLive = hasScores && leader !== null;
+    const disp = slot ? slotDisp(slot, rIdx) : null;
+    const perEach = slot?.tieCount > 1 ? ` · ÷${slot.tieCount} = ${fmtMoney(Math.round(payoutAmt / slot.tieCount))} ea.` : '';
+    const isLive = hasScores && disp !== null;
     html += `
       <div class="prize-card">
         <div class="prize-top-row">
@@ -1819,8 +1836,8 @@ function renderPrizes() {
         </div>
         <div class="prize-bottom-row">
           <div class="prize-cell" style="grid-column:span 2">
-            <div class="prize-cell-label">${isLive ? 'Current Leader' : 'Determined per round'}</div>
-            <div class="prize-cell-value ${isLive ? 'highlight' : 'dim'}">${isLive ? bonusPlayer + bonusScore + ' · ' + bonusOwner : 'Updates during play'}</div>
+            <div class="prize-cell-label">${isLive ? 'Winner' : 'Determined per round'}</div>
+            <div class="prize-cell-value ${isLive ? 'highlight' : 'dim'}">${isLive ? disp.names + disp.scoreStr + ' · ' + disp.owners + perEach : 'Updates during play'}</div>
           </div>
         </div>
       </div>`;
