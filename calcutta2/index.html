@@ -1677,37 +1677,63 @@ function renderPrizes() {
 }
 
 // ============================================================
-// RENDER AUCTION — all picks sorted alphabetically
+// RENDER AUCTION — all picks with sortable columns
 // ============================================================
+let picksSort = { col: 'name', dir: 1 };
+
+function sortPicks(col) {
+  picksSort.dir = picksSort.col === col ? picksSort.dir * -1 : 1;
+  picksSort.col = col;
+  renderPicks();
+}
+
 function renderPicks() {
   const hasScores = Object.keys(liveScores).length > 0;
-  const sorted = ALL_PICKS
-    .filter(p => !p.inField)
-    .sort((a, b) => canonicalName(a.name).localeCompare(canonicalName(b.name)));
 
-  let html = `
-    <div class="picks-header">
-      <div>PLAYER</div>
-      <div style="text-align:right">OWNER</div>
-      <div style="text-align:right">PRICE</div>
-      <div style="text-align:right">PROJ</div>
-      <div style="text-align:right">MULT</div>
-    </div>`;
-
-  sorted.forEach((pick, i) => {
+  // Compute all derived values first so we can sort by them
+  const rows = ALL_PICKS.filter(p => !p.inField).map(pick => {
     const score = getScore(pick.name);
     const pos = score ? score.position : null;
     const tieCount = score ? (score.tieCount || 1) : 1;
     const status = score ? score.status : 'active';
-    const proj = status !== 'cut' ? projectedPayout(pos, 87, tieCount) : 0;
-    const mult = fmtMultiple(proj, pick.price);
+    const isCut = status === 'cut';
+    const proj = isCut ? 0 : projectedPayout(pos, 87, tieCount);
+    const multVal = pick.price > 0 ? proj / pick.price : 0;
     const ownerDisplay = pick.splitOwner
       ? `${shortName(pick.owner)}/${shortName(pick.splitOwner)}`
       : shortName(pick.owner);
-    const isCut = status === 'cut';
+    return { pick, proj, multVal, ownerDisplay, isCut, mult: fmtMultiple(proj, pick.price) };
+  });
 
+  const { col, dir } = picksSort;
+  rows.sort((a, b) => {
+    switch (col) {
+      case 'name':  return dir * canonicalName(a.pick.name).localeCompare(canonicalName(b.pick.name));
+      case 'owner': return dir * a.ownerDisplay.localeCompare(b.ownerDisplay);
+      case 'price': return dir * (a.pick.price - b.pick.price);
+      case 'proj':  return dir * (a.proj - b.proj);
+      case 'mult':  return dir * (a.multVal - b.multVal);
+      default: return 0;
+    }
+  });
+
+  const ind = c => picksSort.col === c ? (picksSort.dir === 1 ? ' ▲' : ' ▼') : '';
+  const hdr = (c, label, align) =>
+    `<div onclick="sortPicks('${c}')" style="text-align:${align};cursor:pointer;user-select:none">${label}${ind(c)}</div>`;
+
+  let html = `
+    <div class="picks-header">
+      ${hdr('name',  'PLAYER', 'left')}
+      ${hdr('owner', 'OWNER',  'right')}
+      ${hdr('price', 'PRICE',  'right')}
+      ${hdr('proj',  'PROJ',   'right')}
+      ${hdr('mult',  'MULT',   'right')}
+    </div>`;
+
+  rows.forEach((row, i) => {
+    const { pick, proj, ownerDisplay, isCut, mult } = row;
     html += `
-      <div class="picks-row" style="animation-delay:${Math.min(i,30)*0.02}s${isCut ? ';opacity:0.45' : ''}">
+      <div class="picks-row" style="${isCut ? 'opacity:0.45;' : ''}">
         <div class="picks-player-name">${canonicalName(pick.name)}</div>
         <div class="picks-cell" style="color:var(--text-dim)">${ownerDisplay}</div>
         <div class="picks-cell" style="color:var(--text-dim)">${fmtMoney(pick.price)}</div>
