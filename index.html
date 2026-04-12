@@ -1244,21 +1244,8 @@ async function fetchLiveScores() {
         if (!isNaN(lsv)) roundScores[idx] = lsv > 30 ? (lsv - 72) : lsv;
       });
 
-      let todayScore = null;
-      if (statusState !== 'pre') {
-        if (linescores.length >= 2) {
-          // Sum prior completed rounds (all but last linescore entry)
-          let prevTopar = 0, prevValid = true;
-          for (let r = 0; r < linescores.length - 1; r++) {
-            const lsv = parseFloat(linescores[r].value ?? linescores[r].displayValue ?? '');
-            if (isNaN(lsv) || lsv === 0) { prevValid = false; break; }
-            // Raw strokes (>30) → subtract Augusta par 72; otherwise already to-par
-            prevTopar += lsv > 30 ? (lsv - 72) : lsv;
-          }
-          if (prevValid) todayScore = score - prevTopar;
-        }
-        if (todayScore === null) todayScore = score; // R1 or fallback: cumulative = today
-      }
+      // Today's score is directly on the current round's linescore
+      const todayScore = linescores[tournamentRound - 1]?.displayValue ?? null;
 
       // Status — primary: linescore count. Secondary: ESPN status fields (mostly undefined but kept for future)
       const sName    = (comp.status?.type?.name       || '').toUpperCase();
@@ -1761,7 +1748,8 @@ function renderField() {
     const isMe = pick._owners.includes(selectedTeam);
     const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || '—');
     const thruDisplay = thru && thru !== '-' ? thru : '—';
-    const todayDisplay = todayScore !== null ? fmtScore(todayScore) : '—';
+    const todayDisplay = (todayScore && todayScore !== '-') ? todayScore : '—';
+    const todayNum = todayDisplay === '—' ? 0 : (todayDisplay === 'E' ? 0 : parseFloat(todayDisplay));
     const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
     html += `
       <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
@@ -1769,7 +1757,7 @@ function renderField() {
         <div class="field-name">${pick._canonName}</div>
         <div class="field-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}</div>
         <div class="field-score" style="color:var(--text-dim);font-weight:400">${thruDisplay}</div>
-        <div class="field-score ${scoreColor(todayScore)}">${todayDisplay}</div>
+        <div class="field-score ${scoreColor(todayNum)}">${todayDisplay}</div>
         <div class="field-owner ${isMe ? 'mine' : ''}">${ownerDisplay}</div>
       </div>`;
   });
