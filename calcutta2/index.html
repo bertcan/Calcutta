@@ -432,8 +432,8 @@ text-align: right;
 #field-list { overflow-x: auto; }
 .field-header, .field-player {
 display: grid;
-grid-template-columns: 36px 1fr 36px 40px 40px 54px 30px 30px 30px 30px;
-min-width: 370px;
+grid-template-columns: 36px 1fr 38px 40px 40px 54px 28px 28px 28px 28px 34px;
+min-width: 390px;
 align-items: center;
 padding: 8px 12px;
 }
@@ -1205,8 +1205,10 @@ async function fetchLiveScores() {
       const roundScores = linescores.map(ls =>
         ls.value >= 50 ? (ls.displayValue === 'E' ? 0 : (parseInt(ls.displayValue.replace('+', '')) || 0)) : undefined
       );
+      // Per-round raw stroke totals — only for completed rounds
+      const roundStrokes = linescores.map(ls => ls.value >= 50 ? ls.value : undefined);
 
-      newScores[name] = { name, position: comp.order || 999, posStr: '', score, todayScore, thru, status, roundScores };
+      newScores[name] = { name, position: comp.order || 999, posStr: '', score, todayScore, thru, status, roundScores, roundStrokes };
     });
 
     // Compute T-positions for active players grouped by score
@@ -1642,14 +1644,15 @@ function renderField() {
     <div class="field-header">
       <div style="text-align:center">POS</div>
       <div>PLAYER</div>
-      <div style="text-align:center">TOT</div>
-      <div style="text-align:center">THRU</div>
+      <div style="text-align:center">SCORE</div>
       <div style="text-align:center">TODAY</div>
+      <div style="text-align:center">THRU</div>
       <div style="text-align:right">OWNER</div>
       <div style="text-align:center">R1</div>
       <div style="text-align:center">R2</div>
       <div style="text-align:center">R3</div>
       <div style="text-align:center">R4</div>
+      <div style="text-align:center">TOT</div>
     </div>`;
   sorted.forEach((pick, i) => {
     const score = pick._score;
@@ -1664,19 +1667,23 @@ function renderField() {
     const todayNum = todayDisplay === '—' ? 0 : (todayDisplay === 'E' ? 0 : parseFloat(todayDisplay));
     const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
     const rs = score?.roundScores || [];
-    const r = [0,1,2,3].map(n => rs[n] !== undefined ? { v: rs[n], s: fmtScore(rs[n]) } : { v: null, s: '--' });
+    const rk = score?.roundStrokes || [];
+    const r = [0,1,2,3].map(n => rk[n] !== undefined ? { v: rs[n], s: String(rk[n]) } : { v: null, s: '--' });
+    const totStrokes = rk.filter(v => v !== undefined).reduce((a, b) => a + b, 0);
+    const totDisplay = totStrokes > 0 ? String(totStrokes) : '--';
     html += `
       <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
         <div class="field-pos">${posDisplay}</div>
         <div class="field-name">${pick._canonName}</div>
         <div class="field-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}</div>
-        <div class="field-score" style="color:var(--text-dim);font-weight:400">${thruDisplay}</div>
         <div class="field-score ${scoreColor(todayNum)}">${todayDisplay}</div>
+        <div class="field-score" style="color:var(--text-dim);font-weight:400">${thruDisplay}</div>
         <div class="field-owner ${isMe ? 'mine' : ''}">${ownerDisplay}</div>
         <div class="field-score ${r[0].v!==null?scoreColor(r[0].v):''}" style="font-size:11px">${r[0].s}</div>
         <div class="field-score ${r[1].v!==null?scoreColor(r[1].v):''}" style="font-size:11px">${r[1].s}</div>
         <div class="field-score ${r[2].v!==null?scoreColor(r[2].v):''}" style="font-size:11px">${r[2].s}</div>
         <div class="field-score ${r[3].v!==null?scoreColor(r[3].v):''}" style="font-size:11px">${r[3].s}</div>
+        <div class="field-score" style="font-size:11px;color:var(--text-dim)">${totDisplay}</div>
       </div>`;
   });
 
