@@ -446,15 +446,21 @@ text-align: right;
 .lb-proj.negative { color: var(--red-light); font-size: 12px; }
 
 /* ===== FIELD VIEW ===== */
+#field-list {
+overflow-x: auto;
+-webkit-overflow-scrolling: touch;
+}
+
 .field-header, .field-player {
 display: grid;
-grid-template-columns: 40px 1fr 42px 42px 48px 72px;
+grid-template-columns: 34px 110px 40px 50px 42px 54px 32px 32px 32px 32px 40px;
 align-items: center;
-padding: 8px 12px;
+padding: 7px 10px;
+min-width: 502px;
 }
 
 .field-header {
-font-size: 10px;
+font-size: 9px;
 color: var(--text-dim);
 font-weight: 700;
 letter-spacing: 0.06em;
@@ -472,38 +478,60 @@ transition: background 0.15s;
 }
 
 .field-player:active { background: rgba(255,255,255,0.03); }
+.field-player.is-cut { opacity: 0.6; }
 
 .field-pos {
-font-size: 11px;
+font-size: 10px;
 color: var(--text-dim);
 text-align: center;
 font-weight: 600;
 }
 
 .field-name {
-font-size: 13px;
+font-size: 12px;
 color: var(--cream);
-font-family: ‘Playfair Display’, serif;
 font-weight: 600;
+white-space: nowrap;
+overflow: hidden;
+text-overflow: ellipsis;
 padding-right: 4px;
 }
 
 .field-score {
-font-size: 12px;
+font-size: 11px;
 font-weight: 600;
 text-align: center;
 }
 
-.field-owner {
-font-size: 10px;
+.field-rnd {
+font-size: 11px;
+text-align: center;
 color: var(--text-dim);
-text-align: right;
+font-weight: 400;
+}
+
+.field-owner {
+font-size: 9px;
+color: var(--text-dim);
+text-align: center;
 white-space: nowrap;
 overflow: hidden;
 text-overflow: ellipsis;
 }
 
 .field-owner.mine { color: var(--gold); font-weight: 600; }
+
+.cut-separator {
+padding: 8px 12px;
+font-size: 11px;
+color: var(--text-dim);
+font-style: italic;
+text-align: center;
+background: rgba(0,0,0,0.25);
+border-top: 1px solid rgba(255,255,255,0.08);
+border-bottom: 1px solid rgba(255,255,255,0.08);
+min-width: 502px;
+}
 
 /* ===== PAYOUTS VIEW ===== */
 .payout-card {
@@ -1851,11 +1879,61 @@ function renderField() {
     }
   });
 
-  const sorted = Object.values(playerMap).sort((a, b) => {
-    const pa = a._score ? (a._score.position || 999) : 999;
-    const pb = b._score ? (b._score.position || 999) : 999;
-    return pa - pb;
-  });
+  const all = Object.values(playerMap);
+  const active = all.filter(p => !p._score || p._score.status !== 'cut')
+    .sort((a, b) => (a._score?.position || 999) - (b._score?.position || 999));
+  const cut = all.filter(p => p._score?.status === 'cut')
+    .sort((a, b) => (a._score?.score ?? 999) - (b._score?.score ?? 999));
+
+  // Helper: round stroke count from roundScores (to-par → strokes by adding par 72)
+  const rndStroke = (rs, rIdx) => {
+    const v = rs?.[rIdx];
+    return v !== undefined ? v + 72 : null;
+  };
+
+  const playerRow = (pick, i, isCut) => {
+    const score = pick._score;
+    const scoreVal = score ? score.score : null;
+    const todayScore = score ? score.todayScore : null;
+    const thru = score ? score.thru : null;
+    const rs = score?.roundScores;
+
+    const posDisplay = isCut ? 'MC' : (score?.posStr || '—');
+    const totDisplay = isCut ? 'CUT' : fmtScore(scoreVal);
+    const totClass   = isCut ? 'dim' : scoreColor(scoreVal);
+    const thruDisplay = isCut ? '-' : (thru && thru !== '-' ? thru : '—');
+    // TODAY: dash if not teed off (no todayScore and not finished/in-progress)
+    const todayDisplay = (!isCut && todayScore !== null) ? fmtScore(todayScore) : '-';
+    const todayClass   = todayScore !== null ? scoreColor(todayScore) : '';
+
+    const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
+    const isMe = pick._owners.includes(selectedTeam);
+
+    const r1 = rndStroke(rs, 0);
+    const r2 = rndStroke(rs, 1);
+    const r3 = rndStroke(rs, 2);
+    const r4 = rndStroke(rs, 3);
+
+    // Total strokes: score (cumulative to-par) + 72 × rounds played
+    const roundsPlayed = [r1,r2,r3,r4].filter(v => v !== null).length;
+    const totStrokes = roundsPlayed > 0 && scoreVal !== null ? scoreVal + 72 * roundsPlayed : null;
+
+    const dash = '--';
+    return `
+      <div class="field-player ${isCut ? 'is-cut' : ''}" style="animation-delay:${Math.min(i,30)*0.02}s">
+        <div class="field-pos">${posDisplay}</div>
+        <div class="field-name">${pick._canonName}</div>
+        <div class="field-score ${totClass}">${totDisplay}</div>
+        <div class="field-score" style="font-weight:400;color:var(--text-dim)">${thruDisplay}</div>
+        <div class="field-score ${todayClass}">${todayDisplay}</div>
+        <div class="field-owner ${isMe ? 'mine' : ''}">${ownerDisplay}</div>
+        <div class="field-rnd">${r1 !== null ? r1 : dash}</div>
+        <div class="field-rnd">${r2 !== null ? r2 : dash}</div>
+        <div class="field-rnd">${r3 !== null ? r3 : dash}</div>
+        <div class="field-rnd">${r4 !== null ? r4 : dash}</div>
+        <div class="field-rnd" style="font-weight:600;color:var(--cream)">${totStrokes !== null ? totStrokes : dash}</div>
+      </div>`;
+  };
 
   let html = `
     <div class="field-header">
@@ -1864,29 +1942,23 @@ function renderField() {
       <div style="text-align:center">TOT</div>
       <div style="text-align:center">THRU</div>
       <div style="text-align:center">TODAY</div>
-      <div style="text-align:right">OWNER</div>
+      <div style="text-align:center">OWNER</div>
+      <div style="text-align:center">R1</div>
+      <div style="text-align:center">R2</div>
+      <div style="text-align:center">R3</div>
+      <div style="text-align:center">R4</div>
+      <div style="text-align:center">TOT</div>
     </div>`;
-  sorted.forEach((pick, i) => {
-    const score = pick._score;
-    const scoreVal = score ? score.score : null;
-    const todayScore = score ? score.todayScore : null;
-    const thru = score ? score.thru : null;
-    const status = score ? score.status : 'active';
-    const isMe = pick._owners.includes(selectedTeam);
-    const posDisplay = status === 'cut' ? 'MC' : (score?.posStr || '—');
-    const thruDisplay = thru && thru !== '-' ? thru : '—';
-    const todayDisplay = todayScore !== null ? fmtScore(todayScore) : '—';
-    const ownerDisplay = pick._owners.map(o => o.split(' ')[0]).join('/');
-    html += `
-      <div class="field-player" style="animation-delay:${Math.min(i,30)*0.02}s">
-        <div class="field-pos">${posDisplay}</div>
-        <div class="field-name">${pick._canonName}</div>
-        <div class="field-score ${scoreColor(scoreVal)}">${fmtScore(scoreVal)}</div>
-        <div class="field-score" style="color:var(--text-dim);font-weight:400">${thruDisplay}</div>
-        <div class="field-score ${scoreColor(todayScore)}">${todayDisplay}</div>
-        <div class="field-owner ${isMe ? 'mine' : ''}">${ownerDisplay}</div>
-      </div>`;
-  });
+
+  active.forEach((p, i) => { html += playerRow(p, i, false); });
+
+  if (cut.length > 0) {
+    // Estimate cut line from highest active player's score (or lowest cut player's score)
+    const cutScore = cut[0]._score?.score;
+    const cutLine = cutScore !== null && cutScore !== undefined ? ` at ${fmtScore(cutScore)}` : '';
+    html += `<div class="cut-separator">The following players missed the cut${cutLine}</div>`;
+    cut.forEach((p, i) => { html += playerRow(p, i + active.length, true); });
+  }
 
   document.getElementById('field-list').innerHTML = html;
   if (lastFetch) document.getElementById('field-updated').textContent = 'Updated ' + lastFetch.toLocaleTimeString();
